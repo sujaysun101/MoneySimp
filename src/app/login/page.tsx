@@ -10,6 +10,7 @@ import { APP_NAME } from "@/lib/constants";
 import { useRouter } from "next/navigation";
 import React, { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import Link from "next/link"; // Added Link import
 
 export default function LoginPage() {
   const router = useRouter();
