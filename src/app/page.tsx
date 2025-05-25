@@ -1,9 +1,13 @@
+// src/app/page.tsx
+"use client"; // Add this directive
+
 import { AIFinanceTipCard } from '@/components/shared/AIFinanceTipCard';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { DollarSign, TrendingUp, Landmark, PlusCircle } from 'lucide-react';
 import Image from 'next/image';
+import { useState, useEffect } from 'react';
 
 export default function DashboardPage() {
   // Mock data for demonstration
@@ -13,6 +17,14 @@ export default function DashboardPage() {
 
   // Simulate spending habits for AI tip
   const spendingHabitsSummary = `User has a total balance of $${totalBalance.toFixed(2)}, with monthly spending around $${monthlySpending.toFixed(2)}. Budget utilization is at ${budgetProgress}%. Key spending areas include groceries and dining out.`;
+
+  const [clientTotalBalance, setClientTotalBalance] = useState<string | null>(null);
+  const [clientMonthlySpending, setClientMonthlySpending] = useState<string | null>(null);
+
+  useEffect(() => {
+    setClientTotalBalance(totalBalance.toFixed(2));
+    setClientMonthlySpending(monthlySpending.toFixed(2));
+  }, []); // Empty dependency array to run once on mount
 
 
   return (
@@ -29,7 +41,7 @@ export default function DashboardPage() {
             <DollarSign className="h-5 w-5 text-accent" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalBalance.toLocaleString()}</div>
+            <div className="text-2xl font-bold">${clientTotalBalance !== null ? clientTotalBalance : '...'}</div>
             <p className="text-xs text-muted-foreground">+2.1% from last month</p>
           </CardContent>
         </Card>
@@ -39,7 +51,7 @@ export default function DashboardPage() {
             <TrendingUp className="h-5 w-5 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${monthlySpending.toLocaleString()}</div>
+            <div className="text-2xl font-bold">${clientMonthlySpending !== null ? clientMonthlySpending : '...'}</div>
             <p className="text-xs text-muted-foreground">Compared to $1700 last month</p>
           </CardContent>
         </Card>
