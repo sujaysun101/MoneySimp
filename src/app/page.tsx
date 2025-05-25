@@ -10,21 +10,37 @@ import Image from 'next/image';
 import { useState, useEffect } from 'react';
 
 export default function DashboardPage() {
-  // Mock data for demonstration
-  const totalBalance = 12530.75;
-  const monthlySpending = 1850.50;
-  const budgetProgress = 65; // percentage
-
-  // Simulate spending habits for AI tip
-  const spendingHabitsSummary = `User has a total balance of $${totalBalance.toFixed(2)}, with monthly spending around $${monthlySpending.toFixed(2)}. Budget utilization is at ${budgetProgress}%. Key spending areas include groceries and dining out.`;
+  // Initialize with actual data sources or default to 0/empty
+  const [totalBalance, setTotalBalance] = useState(0);
+  const [monthlySpending, setMonthlySpending] = useState(0);
+  const [budgetProgress, setBudgetProgress] = useState(0); // percentage
 
   const [clientTotalBalance, setClientTotalBalance] = useState<string | null>(null);
   const [clientMonthlySpending, setClientMonthlySpending] = useState<string | null>(null);
+  const [clientBudgetProgress, setClientBudgetProgress] = useState<string | null>(null);
+  const [spendingHabitsSummary, setSpendingHabitsSummary] = useState<string>("");
 
   useEffect(() => {
-    setClientTotalBalance(totalBalance.toFixed(2));
-    setClientMonthlySpending(monthlySpending.toFixed(2));
-  }, []); // Empty dependency array to run once on mount
+    // In a real app, fetch this data
+    // For now, setting to 0 or derived from other sources
+    const currentTotalBalance = 0; // Replace with actual data source
+    const currentMonthlySpending = 0; // Replace with actual data source
+    const currentBudgetProgress = 0; // Replace with actual data source
+
+    setTotalBalance(currentTotalBalance);
+    setMonthlySpending(currentMonthlySpending);
+    setBudgetProgress(currentBudgetProgress);
+
+    setClientTotalBalance(currentTotalBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+    setClientMonthlySpending(currentMonthlySpending.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+    setClientBudgetProgress(currentBudgetProgress.toFixed(0));
+
+    if (currentTotalBalance > 0 || currentMonthlySpending > 0) {
+      setSpendingHabitsSummary(`User has a total balance of $${currentTotalBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}, with monthly spending around $${currentMonthlySpending.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. Budget utilization is at ${currentBudgetProgress}%.`);
+    } else {
+      setSpendingHabitsSummary(""); // Will trigger fallback in AIFinanceTipCard
+    }
+  }, []);
 
 
   return (
@@ -41,8 +57,8 @@ export default function DashboardPage() {
             <DollarSign className="h-5 w-5 text-accent" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${clientTotalBalance !== null ? clientTotalBalance : '...'}</div>
-            <p className="text-xs text-muted-foreground">+2.1% from last month</p>
+            <div className="text-2xl font-bold">${clientTotalBalance !== null ? clientTotalBalance : '0.00'}</div>
+            {/* <p className="text-xs text-muted-foreground">+2.1% from last month</p> */}
           </CardContent>
         </Card>
         <Card className="shadow-md hover:shadow-lg transition-shadow">
@@ -51,8 +67,8 @@ export default function DashboardPage() {
             <TrendingUp className="h-5 w-5 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${clientMonthlySpending !== null ? clientMonthlySpending : '...'}</div>
-            <p className="text-xs text-muted-foreground">Compared to $1700 last month</p>
+            <div className="text-2xl font-bold">${clientMonthlySpending !== null ? clientMonthlySpending : '0.00'}</div>
+            {/* <p className="text-xs text-muted-foreground">Compared to $0 last month</p> */}
           </CardContent>
         </Card>
         <Card className="shadow-md hover:shadow-lg transition-shadow">
@@ -61,8 +77,8 @@ export default function DashboardPage() {
             <Landmark className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{budgetProgress}% Utilized</div>
-            <p className="text-xs text-muted-foreground">35% remaining for this month</p>
+            <div className="text-2xl font-bold">{clientBudgetProgress !== null ? clientBudgetProgress : '0'}% Utilized</div>
+            {/* <p className="text-xs text-muted-foreground">0% remaining for this month</p> */}
           </CardContent>
         </Card>
       </div>
@@ -101,8 +117,8 @@ export default function DashboardPage() {
                 <CardDescription>Get a clear overview of your financial habits.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col items-center text-center">
-                <Image 
-                    src="https://placehold.co/600x300.png" // Placeholder for a chart/graph image
+                <Image
+                    src="https://placehold.co/600x300.png"
                     alt="Spending visualization placeholder"
                     width={600}
                     height={300}
@@ -116,7 +132,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </div>
-        
+
         <div className="md:col-span-1">
            <AIFinanceTipCard mockSpendingSummary={spendingHabitsSummary} />
         </div>

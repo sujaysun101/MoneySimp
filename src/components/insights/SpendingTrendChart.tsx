@@ -3,8 +3,7 @@
 
 import * as React from "react"
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
-import { BarChart3 } from "lucide-react"
-import { Skeleton } from "@/components/ui/skeleton"
+import { BarChart3, Info } from "lucide-react" // Added Info icon
 
 import {
   Card,
@@ -25,14 +24,7 @@ interface TrendDataPoint {
   totalSpending: number;
 }
 
-const generateMockTrendData = (): TrendDataPoint[] => [
-  { month: "Jan", totalSpending: Math.floor(Math.random() * 2000) + 500 },
-  { month: "Feb", totalSpending: Math.floor(Math.random() * 2000) + 500 },
-  { month: "Mar", totalSpending: Math.floor(Math.random() * 2000) + 500 },
-  { month: "Apr", totalSpending: Math.floor(Math.random() * 2000) + 500 },
-  { month: "May", totalSpending: Math.floor(Math.random() * 2000) + 500 },
-  { month: "Jun", totalSpending: Math.floor(Math.random() * 2000) + 500 },
-];
+// No mock data generation function here
 
 const chartConfig = {
   totalSpending: {
@@ -42,67 +34,59 @@ const chartConfig = {
 } satisfies ChartConfig
 
 export function SpendingTrendChart() {
-  const [trendData, setTrendData] = React.useState<TrendDataPoint[] | null>(null);
+  // Initialize with an empty array. Data should be fetched or passed as props in a real app.
+  const [trendData, setTrendData] = React.useState<TrendDataPoint[]>([]);
 
-  React.useEffect(() => {
-    setTrendData(generateMockTrendData());
-  }, []);
-
-  if (!trendData) {
-    return (
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center text-lg">
-            <BarChart3 className="h-5 w-5 mr-2 text-primary" />
-            Monthly Spending Trend
-          </CardTitle>
-          <CardDescription>Last 6 Months (Mock Data)</CardDescription>
-        </CardHeader>
-        <CardContent className="h-[300px] w-full flex items-center justify-center">
-           <Skeleton className="h-[250px] w-full" />
-        </CardContent>
-        <CardFooter className="text-sm text-muted-foreground">
-          <Skeleton className="h-4 w-3/4" />
-        </CardFooter>
-      </Card>
-    );
-  }
+  // In a real application, useEffect would be used to fetch data.
+  // For now, it remains empty, and the chart will show a "No data" state.
 
   return (
-    <Card className="shadow-lg">
+    <Card className="shadow-lg min-h-[400px]">
       <CardHeader>
         <CardTitle className="flex items-center text-lg">
           <BarChart3 className="h-5 w-5 mr-2 text-primary" />
           Monthly Spending Trend
         </CardTitle>
-        <CardDescription>Last 6 Months (Mock Data)</CardDescription>
+        <CardDescription>Last 6 Months</CardDescription>
       </CardHeader>
-      <CardContent>
-        <ChartContainer config={chartConfig} className="h-[300px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={trendData} accessibilityLayer>
-              <CartesianGrid vertical={false} />
-              <XAxis
-                dataKey="month"
-                tickLine={false}
-                tickMargin={10}
-                axisLine={false}
-                tickFormatter={(value) => value.slice(0, 3)}
-              />
-              <YAxis
-                tickFormatter={(value) => `$${value / 1000}k`}
-                tickLine={false}
-                axisLine={false}
-                tickMargin={10}
-               />
-              <Tooltip cursor={false} content={<ChartTooltipContent indicator="dashed" />} />
-              <Bar dataKey="totalSpending" fill="var(--color-totalSpending)" radius={4} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartContainer>
+      <CardContent className="flex-1 flex items-center justify-center h-[300px] w-full">
+        {trendData.length === 0 ? (
+          <div className="flex flex-col items-center text-center text-muted-foreground">
+            <Info className="h-10 w-10 mb-3" />
+            <p>No spending trend data available.</p>
+            <p className="text-sm">Data will appear here as you track expenses over time.</p>
+          </div>
+        ) : (
+          <ChartContainer config={chartConfig} className="h-full w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={trendData} accessibilityLayer>
+                <CartesianGrid vertical={false} />
+                <XAxis
+                  dataKey="month"
+                  tickLine={false}
+                  tickMargin={10}
+                  axisLine={false}
+                  tickFormatter={(value) => value.slice(0, 3)}
+                />
+                <YAxis
+                  tickFormatter={(value) => `$${(value / 1000).toLocaleString('en-US', {})}k`}
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={10}
+                 />
+                <Tooltip cursor={false} content={<ChartTooltipContent indicator="dashed" />} />
+                <Bar dataKey="totalSpending" fill="var(--color-totalSpending)" radius={4} />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartContainer>
+        )}
       </CardContent>
       <CardFooter className="text-sm text-muted-foreground">
-        <p>This chart shows your total spending for each of the last 6 months.</p>
+        {trendData.length > 0 ? (
+          <p>This chart shows your total spending for available months.</p>
+        ) : (
+          <p>Track your expenses to see monthly trends.</p>
+        )}
       </CardFooter>
     </Card>
   )

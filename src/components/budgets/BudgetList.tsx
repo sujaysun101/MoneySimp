@@ -45,7 +45,7 @@ export function BudgetList({ budgets, onDeleteBudget }: BudgetListProps) {
                     {budget.name}
                   </CardTitle>
                   <CardDescription>
-                    Target: ${budget.amount.toFixed(2)}
+                    Target: ${budget.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </CardDescription>
                 </div>
                 <Button variant="ghost" size="icon" onClick={() => onDeleteBudget(budget.id)} aria-label={`Delete ${budget.name} budget`}>
@@ -55,11 +55,11 @@ export function BudgetList({ budgets, onDeleteBudget }: BudgetListProps) {
             </CardHeader>
             <CardContent>
               <div className="mb-2 flex justify-between text-sm">
-                <span>Spent: ${budget.spentAmount.toFixed(2)}</span>
+                <span>Spent: ${budget.spentAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 <span className={isOverBudget ? "text-destructive font-semibold" : "text-muted-foreground"}>
-                  {isOverBudget 
-                    ? `Over by $${Math.abs(remaining).toFixed(2)}` 
-                    : `Remaining: $${remaining.toFixed(2)}`}
+                  {isOverBudget
+                    ? `Over by $${Math.abs(remaining).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    : `Remaining: $${remaining.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                 </span>
               </div>
               <Progress value={progress} className={isOverBudget ? "h-3 [&>*]:bg-destructive" : "h-3"} />

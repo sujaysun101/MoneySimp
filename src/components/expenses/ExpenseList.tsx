@@ -10,21 +10,16 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
 import { DollarSign } from 'lucide-react';
 
-// Mock data for demonstration
-const mockExpenses: Expense[] = [
-  { id: '1', description: 'Groceries from Walmart', amount: 75.50, categoryId: 'groceries', date: new Date(2024, 6, 15) },
-  { id: '2', description: 'Monthly Rent', amount: 1200.00, categoryId: 'rent', date: new Date(2024, 6, 1) },
-  { id: '3', description: 'Gasoline for car', amount: 50.25, categoryId: 'transportation', date: new Date(2024, 6, 10) },
-  { id: '4', description: 'Movie tickets', amount: 30.00, categoryId: 'entertainment', date: new Date(2024, 6, 12) },
-  { id: '5', description: 'Electricity Bill', amount: 85.00, categoryId: 'utilities', date: new Date(2024, 6, 5) },
-];
-
 export function ExpenseList() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
 
   useEffect(() => {
-    // In a real app, fetch expenses here
-    setExpenses(mockExpenses);
+    // In a real app, fetch expenses here or get from global state
+    // For now, it will be an empty list until an expense is added (if using local storage or similar)
+    // If expenses are managed in localStorage by ExpenseForm, this component might need to read from there
+    // or receive expenses as a prop.
+    // For this iteration, we just initialize to empty.
+    setExpenses([]);
   }, []);
 
   const getCategory = (categoryId: string) => {
@@ -33,7 +28,7 @@ export function ExpenseList() {
 
   if (expenses.length === 0) {
     return (
-      <Card>
+      <Card className="mt-8 shadow-md">
         <CardHeader>
           <CardTitle>Recent Expenses</CardTitle>
         </CardHeader>
@@ -77,7 +72,9 @@ export function ExpenseList() {
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">${expense.amount.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">
+                      ${expense.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </TableCell>
                   </TableRow>
                 );
               })}

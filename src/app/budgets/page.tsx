@@ -7,19 +7,21 @@ import { BudgetList } from '@/components/budgets/BudgetList';
 import type { Budget } from '@/lib/types';
 import { CATEGORIES } from '@/lib/constants';
 import { v4 as uuidv4 } from 'uuid';
-import { DollarSign } from 'lucide-react'; // Added missing import
+import { DollarSign } from 'lucide-react';
 
-// Mock data for expenses to calculate spent amounts
-const mockExpenses = [
-  { categoryId: 'groceries', amount: 150 },
-  { categoryId: 'transportation', amount: 80 },
-  { categoryId: 'groceries', amount: 70 },
-  { categoryId: 'entertainment', amount: 120 },
-];
+// No mock expenses, this will be calculated from actual expense data in a full app
+const calculateSpentAmount = (categoryId: string, expenses: any[] = []): number => {
+  // In a real app, 'expenses' would come from a data store (e.g., state, context, API)
+  return expenses
+    .filter(expense => expense.categoryId === categoryId)
+    .reduce((sum, expense) => sum + expense.amount, 0);
+};
 
 
 export default function BudgetsPage() {
   const [budgets, setBudgets] = useState<Budget[]>([]);
+  // In a real app, expenses would be fetched or managed in a global state
+  const [userExpenses, setUserExpenses] = useState<any[]>([]); // Placeholder for actual expenses
 
   // Load budgets from local storage or initialize
   useEffect(() => {
@@ -31,48 +33,32 @@ export default function BudgetsPage() {
           const category = CATEGORIES.find(c => c.id === b.categoryId);
           return {
             ...b,
-            id: (b as any).id || uuidv4(), // Ensure ID exists, provide if legacy
+            id: (b as any).id || uuidv4(),
             name: category?.name || 'Unknown Category',
-            icon: category?.icon || DollarSign, 
-            amount: (b as any).amount || 0, // Ensure amount exists
-            spentAmount: calculateSpentAmount(b.categoryId) 
+            icon: category?.icon || DollarSign,
+            amount: (b as any).amount || 0,
+            spentAmount: calculateSpentAmount(b.categoryId, userExpenses)
           };
         });
         setBudgets(fullBudgets);
       } catch (error) {
           console.error("Failed to parse budgets from localStorage:", error);
           localStorage.removeItem('pennywise-budgets'); // Clear corrupted data
-           // Initialize with some default budgets for demo
-          const initialBudgetsWithDefaults: Budget[] = [
-            { id: uuidv4(), categoryId: 'groceries', name: 'Groceries', icon: CATEGORIES.find(c=>c.id==='groceries')!.icon, amount: 300, spentAmount: 0 },
-            { id: uuidv4(), categoryId: 'entertainment', name: 'Entertainment', icon: CATEGORIES.find(c=>c.id==='entertainment')!.icon, amount: 150, spentAmount: 0 },
-          ].map(b => ({ ...b, spentAmount: calculateSpentAmount(b.categoryId) }));
-          setBudgets(initialBudgetsWithDefaults);
+          setBudgets([]); // Initialize with empty array on error
       }
     } else {
-      // Initialize with some default budgets for demo
-      const initialBudgets: Budget[] = [
-        { id: uuidv4(), categoryId: 'groceries', name: 'Groceries', icon: CATEGORIES.find(c=>c.id==='groceries')!.icon, amount: 300, spentAmount: 0 },
-        { id: uuidv4(), categoryId: 'entertainment', name: 'Entertainment', icon: CATEGORIES.find(c=>c.id==='entertainment')!.icon, amount: 150, spentAmount: 0 },
-      ].map(b => ({ ...b, spentAmount: calculateSpentAmount(b.categoryId) }));
-      setBudgets(initialBudgets);
+      setBudgets([]); // Initialize with empty array if nothing in storage
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run once on mount
+  }, [userExpenses]); // Re-calculate spent amounts if userExpenses change
 
 
   // Save budgets to local storage whenever they change
   useEffect(() => {
-    // Store only essential data, derive name/icon on load
     const storableBudgets = budgets.map(({ id, categoryId, amount, spentAmount }) => ({ id, categoryId, amount, spentAmount }));
     localStorage.setItem('pennywise-budgets', JSON.stringify(storableBudgets));
   }, [budgets]);
 
-  const calculateSpentAmount = (categoryId: string): number => {
-    return mockExpenses
-      .filter(expense => expense.categoryId === categoryId)
-      .reduce((sum, expense) => sum + expense.amount, 0);
-  };
 
   const handleBudgetSet = (data: { categoryId: string; amount: number }) => {
     const category = CATEGORIES.find(cat => cat.id === data.categoryId);
@@ -84,7 +70,7 @@ export default function BudgetsPage() {
       name: category.name,
       icon: category.icon,
       amount: data.amount,
-      spentAmount: calculateSpentAmount(data.categoryId),
+      spentAmount: calculateSpentAmount(data.categoryId, userExpenses),
     };
     setBudgets(prevBudgets => [...prevBudgets, newBudget]);
   };
@@ -107,9 +93,9 @@ export default function BudgetsPage() {
           <CardDescription>Define a budget for a specific category.</CardDescription>
         </CardHeader>
         <CardContent>
-          <BudgetForm 
-            onBudgetSet={handleBudgetSet} 
-            existingBudgets={budgets.map(b => ({ categoryId: b.categoryId }))} 
+          <BudgetForm
+            onBudgetSet={handleBudgetSet}
+            existingBudgets={budgets.map(b => ({ categoryId: b.categoryId }))}
           />
         </CardContent>
       </Card>
