@@ -3,6 +3,13 @@
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, OAuthProvider, TwitterAuthProvider } from 'firebase/auth';
 
+// Log the API key for debugging purposes (ONLY in development)
+if (process.env.NODE_ENV === 'development') {
+  console.log('Attempting to initialize Firebase with API Key:', process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? "Key Found (see your .env.local)" : "API Key Not Found or Undefined");
+  // To avoid logging the actual key, you can also log its presence or a masked version
+  // console.log('NEXT_PUBLIC_FIREBASE_API_KEY available:', !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY);
+}
+
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -31,3 +38,4 @@ const twitterProvider = new TwitterAuthProvider();
 
 
 export { app, auth, googleProvider, microsoftProvider, twitterProvider };
+
