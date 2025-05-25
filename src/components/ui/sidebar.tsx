@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -10,7 +11,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
-import { Sheet, SheetContent } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet" // Added SheetTitle
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Tooltip,
@@ -72,7 +73,19 @@ const SidebarProvider = React.forwardRef<
     const isMobileHookValue = useIsMobile() // This can be boolean | undefined
     const [openMobile, setOpenMobile] = React.useState(false)
 
-    const [_open, _setOpen] = React.useState(defaultOpen)
+    const [_open, _setOpen] = React.useState(() => {
+      if (typeof document !== 'undefined') {
+        const cookieValue = document.cookie
+          .split("; ")
+          .find((row) => row.startsWith(`${SIDEBAR_COOKIE_NAME}=`))
+          ?.split("=")[1];
+        if (cookieValue) {
+          return cookieValue === 'true';
+        }
+      }
+      return defaultOpen;
+    });
+
     const open = openProp ?? _open
     const setOpen = React.useCallback(
       (value: boolean | ((value: boolean) => boolean)) => {
@@ -90,8 +103,6 @@ const SidebarProvider = React.forwardRef<
     )
 
     const toggleSidebar = React.useCallback(() => {
-      // Handle isMobileHookValue potentially being undefined, though it usually resolves quickly.
-      // Default to desktop behavior if undefined during an unlikely early toggle.
       return (isMobileHookValue === true)
         ? setOpenMobile((current) => !current)
         : setOpen((current) => !current)
@@ -173,7 +184,8 @@ const Sidebar = React.forwardRef<
     },
     ref
   ) => {
-    const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+    const { isMobile, state, open, openMobile, setOpenMobile } = useSidebar()
+
 
     if (collapsible === "none") {
       return (
@@ -189,13 +201,20 @@ const Sidebar = React.forwardRef<
         </div>
       )
     }
-
-    // If collapsible mode depends on isMobile, wait for isMobile to be determined.
+    
+    // Undefined means we're still waiting for client-side hydration to determine mobile status
     if (isMobile === undefined) {
-      return null; // Or a suitable placeholder/skeleton that matches SSR intent
+      // Render a non-collapsible sidebar structure during SSR or if isMobile is undefined
+      // This structure should be simple and not rely on client-side state for its layout
+      // For example, render a static, visible sidebar or nothing, depending on SSR strategy
+      // Or, a skeleton if you prefer:
+      // return <Skeleton className="h-full w-[--sidebar-width]" />; 
+      // For now, returning null to avoid hydration issues, but a placeholder might be better.
+       return null;
     }
 
-    if (isMobile) { // isMobile is now a determined boolean
+
+    if (isMobile) { 
       return (
         <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
           <SheetContent
@@ -209,6 +228,7 @@ const Sidebar = React.forwardRef<
             }
             side={side}
           >
+            <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
             <div className="flex h-full w-full flex-col">{children}</div>
           </SheetContent>
         </Sheet>
@@ -220,7 +240,7 @@ const Sidebar = React.forwardRef<
       <div
         ref={ref}
         className="group peer hidden md:block text-sidebar-foreground"
-        data-state={state}
+        data-state={state} // Use the determined 'state' for desktop
         data-collapsible={state === "collapsed" ? collapsible : ""}
         data-variant={variant}
         data-side={side}
@@ -765,3 +785,5 @@ export {
   SidebarTrigger,
   useSidebar,
 }
+
+    
