@@ -1,142 +1,115 @@
-// src/app/page.tsx
-"use client"; // Add this directive
+// src/app/page.tsx - This is now the public landing page
+"use client"; // Ensure this is the very first line
 
-import { AIFinanceTipCard } from '@/components/shared/AIFinanceTipCard';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import Link from 'next/link';
-import { DollarSign, TrendingUp, Landmark, PlusCircle } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { APP_NAME } from "@/lib/constants";
+import { Mail, TrendingUp, DollarSign, BarChart3 } from "lucide-react";
 import Image from 'next/image';
-import { useState, useEffect } from 'react';
+import Link from "next/link";
+import React from 'react'; // Import React for FormEvent type
 
-export default function DashboardPage() {
-  // Initialize with actual data sources or default to 0/empty
-  const [totalBalance, setTotalBalance] = useState(0);
-  const [monthlySpending, setMonthlySpending] = useState(0);
-  const [budgetProgress, setBudgetProgress] = useState(0); // percentage
+export default function LandingPage() {
+  const handleBookDemoClick = () => {
+    alert('Book a Demo clicked!');
+  };
 
-  const [clientTotalBalance, setClientTotalBalance] = useState<string | null>(null);
-  const [clientMonthlySpending, setClientMonthlySpending] = useState<string | null>(null);
-  const [clientBudgetProgress, setClientBudgetProgress] = useState<string | null>(null);
-  const [spendingHabitsSummary, setSpendingHabitsSummary] = useState<string>("");
-
-  useEffect(() => {
-    // In a real app, fetch this data
-    // For now, setting to 0 or derived from other sources
-    const currentTotalBalance = 0; // Replace with actual data source
-    const currentMonthlySpending = 0; // Replace with actual data source
-    const currentBudgetProgress = 0; // Replace with actual data source
-
-    setTotalBalance(currentTotalBalance);
-    setMonthlySpending(currentMonthlySpending);
-    setBudgetProgress(currentBudgetProgress);
-
-    setClientTotalBalance(currentTotalBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-    setClientMonthlySpending(currentMonthlySpending.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-    setClientBudgetProgress(currentBudgetProgress.toFixed(0));
-
-    if (currentTotalBalance > 0 || currentMonthlySpending > 0) {
-      setSpendingHabitsSummary(`User has a total balance of $${currentTotalBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}, with monthly spending around $${currentMonthlySpending.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. Budget utilization is at ${currentBudgetProgress}%.`);
-    } else {
-      setSpendingHabitsSummary(""); // Will trigger fallback in AIFinanceTipCard
-    }
-  }, []);
-
+  const handleWaitlistSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    alert('Waitlist form submitted!');
+  };
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground">Welcome to PennyWise!</h1>
-        <p className="text-muted-foreground">Your smart personal finance dashboard.</p>
-      </div>
+    <div className="flex flex-col min-h-screen">
+      <header className="container mx-auto py-6 flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-piggy-bank"><path d="M10 15.5V14a2 2 0 1 0-4 0v1.5"/><path d="M8 15.5v4.5H6a2 2 0 0 1-2-2V12a2 2 0 0 1 2-2h2.4a2 2 0 0 1 1.6.8l2.1 2.9c.3.4.9.6 1.4.6H16a2 2 0 0 0 2-2V9a2 2 0 1 0-4 0v1.5a2 2 0 1 1-4 0V9a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2.5c0 .8.4 1.5.9 1.9L5 15"/><path d="M2 9v1c0 1.1.9 2 2 2h1"/></svg>
+          <h1 className="text-2xl font-bold text-primary">{APP_NAME}</h1>
+        </div>
+        <nav className="space-x-4">
+          <Link href="/login" passHref>
+            <Button variant="outline">Login</Button>
+          </Link>
+          <Button onClick={handleBookDemoClick}>Book A Demo</Button>
+        </nav>
+      </header>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
-        <Card className="shadow-md hover:shadow-lg transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Balance</CardTitle>
-            <DollarSign className="h-5 w-5 text-accent" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${clientTotalBalance !== null ? clientTotalBalance : '0.00'}</div>
-            {/* <p className="text-xs text-muted-foreground">+2.1% from last month</p> */}
-          </CardContent>
-        </Card>
-        <Card className="shadow-md hover:shadow-lg transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Monthly Spending</CardTitle>
-            <TrendingUp className="h-5 w-5 text-destructive" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${clientMonthlySpending !== null ? clientMonthlySpending : '0.00'}</div>
-            {/* <p className="text-xs text-muted-foreground">Compared to $0 last month</p> */}
-          </CardContent>
-        </Card>
-        <Card className="shadow-md hover:shadow-lg transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Budget Progress</CardTitle>
-            <Landmark className="h-5 w-5 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{clientBudgetProgress !== null ? clientBudgetProgress : '0'}% Utilized</div>
-            {/* <p className="text-xs text-muted-foreground">0% remaining for this month</p> */}
-          </CardContent>
-        </Card>
-      </div>
+      <main className="flex-grow container mx-auto py-12 md:py-20 flex flex-col items-center text-center">
+        <h2 className="text-4xl md:text-5xl font-extrabold text-foreground mb-4">
+          Welcome to {APP_NAME}
+        </h2>
+        <p className="text-xl md:text-2xl text-muted-foreground mb-10">
+          Your personified finance tracker!
+        </p>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        <div className="md:col-span-2">
-          <Card className="shadow-lg">
+        <div className="mb-12 w-full max-w-md">
+          <Card className="shadow-xl">
             <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-              <CardDescription>Manage your finances with ease.</CardDescription>
+              <CardTitle className="text-xl">Join the Waitlist</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-2">
-              <Link href="/expenses" passHref>
-                <Button variant="outline" className="w-full justify-start text-left p-4 h-auto">
-                  <PlusCircle className="mr-3 h-5 w-5 text-primary" />
-                  <div>
-                    <p className="font-semibold">Add New Expense</p>
-                    <p className="text-xs text-muted-foreground">Log your recent spendings.</p>
-                  </div>
-                </Button>
-              </Link>
-              <Link href="/budgets" passHref>
-                 <Button variant="outline" className="w-full justify-start text-left p-4 h-auto">
-                  <TrendingUp className="mr-3 h-5 w-5 text-primary" />
-                   <div>
-                    <p className="font-semibold">Set/View Budgets</p>
-                    <p className="text-xs text-muted-foreground">Manage your monthly budgets.</p>
-                  </div>
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-          <Card className="mt-6 shadow-lg">
-            <CardHeader>
-                <CardTitle>Visualize Your Spending</CardTitle>
-                <CardDescription>Get a clear overview of your financial habits.</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col items-center text-center">
-                <Image
-                    src="https://placehold.co/600x300.png"
-                    alt="Spending visualization placeholder"
-                    width={600}
-                    height={300}
-                    className="rounded-md mb-4"
-                    data-ai-hint="finance chart graph"
+            <CardContent>
+              <form className="flex flex-col sm:flex-row gap-3" onSubmit={handleWaitlistSubmit}>
+                <Input
+                  type="email"
+                  placeholder="Enter your email"
+                  className="flex-grow text-base"
+                  aria-label="Email for waitlist"
+                  required
                 />
-                <p className="text-muted-foreground mb-4">Detailed charts are available in the Insights section.</p>
-                <Link href="/insights" passHref>
-                    <Button>Go to Insights</Button>
-                </Link>
+                <Button type="submit" className="w-full sm:w-auto">
+                  <Mail className="mr-2 h-5 w-5" /> Join Waitlist
+                </Button>
+              </form>
             </CardContent>
           </Card>
         </div>
-
-        <div className="md:col-span-1">
-           <AIFinanceTipCard mockSpendingSummary={spendingHabitsSummary} />
+        
+        <div className="relative w-full max-w-3xl aspect-video rounded-lg shadow-2xl overflow-hidden">
+            <Image
+                src="https://placehold.co/1200x675.png"
+                alt="App Screenshot Placeholder"
+                layout="fill"
+                objectFit="cover"
+                className="rounded-lg"
+                data-ai-hint="app interface finance"
+            />
         </div>
-      </div>
+
+        <section className="mt-20 w-full max-w-5xl">
+            <h3 className="text-3xl font-bold text-foreground mb-8">Features</h3>
+            <div className="grid md:grid-cols-3 gap-8">
+                <Card className="shadow-lg hover:shadow-xl transition-shadow">
+                    <CardHeader>
+                        <CardTitle className="flex items-center"><TrendingUp className="mr-2 text-primary"/>Track Expenses</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-muted-foreground">Easily log and categorize your spending.</p>
+                    </CardContent>
+                </Card>
+                 <Card className="shadow-lg hover:shadow-xl transition-shadow">
+                    <CardHeader>
+                        <CardTitle className="flex items-center"><DollarSign className="mr-2 text-primary"/>Set Budgets</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-muted-foreground">Create and manage budgets to stay on track.</p>
+                    </CardContent>
+                </Card>
+                 <Card className="shadow-lg hover:shadow-xl transition-shadow">
+                    <CardHeader>
+                        <CardTitle className="flex items-center"><BarChart3 className="mr-2 text-primary"/>Gain Insights</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-muted-foreground">Visualize your financial habits with charts.</p>
+                    </CardContent>
+                </Card>
+            </div>
+        </section>
+      </main>
+
+      <footer className="container mx-auto py-6 text-center text-muted-foreground border-t">
+        © {new Date().getFullYear()} {APP_NAME}. All rights reserved.
+      </footer>
     </div>
   );
 }

@@ -1,10 +1,10 @@
 import type { Category } from './types';
-import { 
-  ShoppingCart, Home, Car, Film, Zap, HeartPulse, Utensils, Shirt, Plane, DollarSign, 
-  LayoutDashboard, CreditCard, TrendingUp, BarChart3, Briefcase, BookOpen, Gift
+import {
+  ShoppingCart, Home, Car, Film, Zap, HeartPulse, Utensils, Shirt, Plane, DollarSign,
+  LayoutDashboard, CreditCard, TrendingUp, BarChart3, Briefcase, BookOpen, Gift, LogIn, Send
 } from 'lucide-react';
 
-export const APP_NAME = "PennyWise";
+export const APP_NAME = "MoneySimp";
 
 export const CATEGORIES: Category[] = [
   { id: 'groceries', name: 'Groceries', icon: ShoppingCart, color: 'hsl(var(--chart-1))' },
@@ -27,11 +27,21 @@ export interface NavItem {
   label: string;
   icon: React.ElementType;
   matchSegments?: number; // For dynamic route matching
+  isButton?: boolean;
+  action?: () => void; // For buttons
 }
 
-export const NAV_ITEMS: NavItem[] = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard, matchSegments: 0 },
+export const AUTH_NAV_ITEMS: NavItem[] = [
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, matchSegments: 1 },
   { href: '/expenses', label: 'Expenses', icon: CreditCard, matchSegments: 1 },
   { href: '/budgets', label: 'Budgets', icon: TrendingUp, matchSegments: 1 },
   { href: '/insights', label: 'Insights', icon: BarChart3, matchSegments: 1 },
 ];
+
+export const UNAUTH_NAV_ITEMS: NavItem[] = [
+  { href: '/login', label: 'Login', icon: LogIn },
+  { href: '#', label: 'Book A Demo', icon: Send, isButton: true, action: () => alert('Book a Demo clicked!') }, // Placeholder action
+];
+
+// To determine page titles in Header
+export const ALL_NAV_ITEMS = [...AUTH_NAV_ITEMS, ...UNAUTH_NAV_ITEMS];

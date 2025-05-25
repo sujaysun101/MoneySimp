@@ -7,11 +7,11 @@ import { BudgetList } from '@/components/budgets/BudgetList';
 import type { Budget } from '@/lib/types';
 import { CATEGORIES } from '@/lib/constants';
 import { v4 as uuidv4 } from 'uuid';
-import { DollarSign } from 'lucide-react';
+import { DollarSign, TrendingUp } from 'lucide-react'; // Added TrendingUp
+import { useRouter } from 'next/navigation';
 
-// No mock expenses, this will be calculated from actual expense data in a full app
+
 const calculateSpentAmount = (categoryId: string, expenses: any[] = []): number => {
-  // In a real app, 'expenses' would come from a data store (e.g., state, context, API)
   return expenses
     .filter(expense => expense.categoryId === categoryId)
     .reduce((sum, expense) => sum + expense.amount, 0);
@@ -19,21 +19,33 @@ const calculateSpentAmount = (categoryId: string, expenses: any[] = []): number 
 
 
 export default function BudgetsPage() {
+  const router = useRouter();
   const [budgets, setBudgets] = useState<Budget[]>([]);
-  // In a real app, expenses would be fetched or managed in a global state
-  const [userExpenses, setUserExpenses] = useState<any[]>([]); // Placeholder for actual expenses
+  const [userExpenses, setUserExpenses] = useState<any[]>([]); 
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const isLoggedIn = localStorage.getItem('moneySimpLoggedIn');
+    if (!isLoggedIn) {
+      router.replace('/login');
+    } else {
+      setIsLoading(false);
+    }
+  }, [router]);
 
   // Load budgets from local storage or initialize
   useEffect(() => {
-    const storedBudgets = localStorage.getItem('pennywise-budgets');
+    if (isLoading) return; // Don't load if still verifying auth
+
+    const storedBudgets = localStorage.getItem('pennywise-budgets'); // Using old key for now
     if (storedBudgets) {
       try {
-        const parsedBudgets: Omit<Budget, 'icon' | 'name' | 'spentAmount'>[] = JSON.parse(storedBudgets);
+        const parsedBudgets: Omit<Budget, 'icon' | 'name' | 'spentAmount' | 'id'>[] = JSON.parse(storedBudgets);
         const fullBudgets = parsedBudgets.map(b => {
           const category = CATEGORIES.find(c => c.id === b.categoryId);
           return {
             ...b,
-            id: (b as any).id || uuidv4(),
+            id: (b as any).id || uuidv4(), // Ensure ID exists or generate
             name: category?.name || 'Unknown Category',
             icon: category?.icon || DollarSign,
             amount: (b as any).amount || 0,
@@ -43,21 +55,23 @@ export default function BudgetsPage() {
         setBudgets(fullBudgets);
       } catch (error) {
           console.error("Failed to parse budgets from localStorage:", error);
-          localStorage.removeItem('pennywise-budgets'); // Clear corrupted data
-          setBudgets([]); // Initialize with empty array on error
+          localStorage.removeItem('pennywise-budgets'); 
+          setBudgets([]); 
       }
     } else {
-      setBudgets([]); // Initialize with empty array if nothing in storage
+      setBudgets([]); 
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userExpenses]); // Re-calculate spent amounts if userExpenses change
+  }, [userExpenses, isLoading]); 
 
 
   // Save budgets to local storage whenever they change
   useEffect(() => {
+    if (isLoading) return;
+    // Filter out properties not needed for storage (like icon, name)
     const storableBudgets = budgets.map(({ id, categoryId, amount, spentAmount }) => ({ id, categoryId, amount, spentAmount }));
     localStorage.setItem('pennywise-budgets', JSON.stringify(storableBudgets));
-  }, [budgets]);
+  }, [budgets, isLoading]);
 
 
   const handleBudgetSet = (data: { categoryId: string; amount: number }) => {
@@ -79,6 +93,13 @@ export default function BudgetsPage() {
     setBudgets(prevBudgets => prevBudgets.filter(b => b.id !== budgetId));
   };
 
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-8 flex justify-center items-center min-h-[calc(100vh-10rem)]">
+        <p>Loading budgets...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-8">

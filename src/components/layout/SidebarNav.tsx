@@ -1,59 +1,114 @@
 // src/components/layout/SidebarNav.tsx
 "use client";
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { PiggyBank } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { PiggyBank, LogOut } from 'lucide-react';
 import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
 } from '@/components/ui/sidebar';
-import { APP_NAME, NAV_ITEMS, type NavItem } from '@/lib/constants';
+import { APP_NAME, AUTH_NAV_ITEMS, UNAUTH_NAV_ITEMS, type NavItem } from '@/lib/constants';
 import { cn } from '@/lib/utils';
-
+import React, { useState, useEffect } from 'react';
+import { useSidebar } from '@/components/ui/sidebar'; // Import useSidebar
+import { Button } from '../ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 export function SidebarNav() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { toast } = useToast();
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const { setOpenMobile, isMobile } = useSidebar(); // Get setOpenMobile and isMobile from context
+
+  useEffect(() => {
+    const loggedIn = localStorage.getItem('moneySimpLoggedIn') === 'true';
+    setIsAuthenticated(loggedIn);
+  }, [pathname]); // Re-check on pathname change, e.g., after login/logout
+
+  const handleNavItemClick = () => {
+    if (isMobile) {
+      setOpenMobile(false); // Close sidebar on mobile after item click
+    }
+  };
+  
+  const handleLogout = () => {
+    localStorage.removeItem('moneySimpLoggedIn');
+    localStorage.removeItem('moneySimpUserEmail');
+    setIsAuthenticated(false);
+    toast({ title: "Logged Out", description: "You have been successfully logged out." });
+    if (isMobile) setOpenMobile(false);
+    router.push('/login');
+  };
+
+  const currentNavItems = isAuthenticated ? AUTH_NAV_ITEMS : UNAUTH_NAV_ITEMS;
 
   const isActive = (item: NavItem) => {
-    if (item.href === '/') return pathname === '/';
-    // For nested routes, check if pathname starts with item.href
+    if (item.href === '/') return pathname === '/'; // Should not happen for AUTH_NAV_ITEMS if dashboard is at /dashboard
+    if (item.href === '/dashboard') return pathname === '/dashboard' || pathname === '/'; // Handle case where logged in user is at root
     return pathname.startsWith(item.href);
   };
 
   return (
     <>
       <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6 sticky top-0 bg-sidebar z-10">
-        <Link href="/" className="flex items-center gap-2 font-semibold text-sidebar-foreground">
-          <PiggyBank className="h-6 w-6 text-primary" />
+        <Link href={isAuthenticated ? "/dashboard" : "/"} className="flex items-center gap-2 font-semibold text-sidebar-foreground" onClick={handleNavItemClick}>
+          {/* Using inline SVG for PiggyBank to avoid issues if lucide-react not fully loaded */}
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-piggy-bank"><path d="M10 15.5V14a2 2 0 1 0-4 0v1.5"/><path d="M8 15.5v4.5H6a2 2 0 0 1-2-2V12a2 2 0 0 1 2-2h2.4a2 2 0 0 1 1.6.8l2.1 2.9c.3.4.9.6 1.4.6H16a2 2 0 0 0 2-2V9a2 2 0 1 0-4 0v1.5a2 2 0 1 1-4 0V9a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2.5c0 .8.4 1.5.9 1.9L5 15"/><path d="M2 9v1c0 1.1.9 2 2 2h1"/></svg>
           <span>{APP_NAME}</span>
         </Link>
       </div>
       <div className="flex-1 overflow-auto py-2">
         <SidebarMenu>
-          {NAV_ITEMS.map((item) => (
+          {currentNavItems.map((item) => (
             <SidebarMenuItem key={item.label}>
-              <Link href={item.href} legacyBehavior passHref>
+              {item.isButton ? (
                 <SidebarMenuButton
                   variant="default"
                   size="default"
-                  className={cn(
-                    "justify-start w-full",
-                    isActive(item) ? 
-                    "bg-sidebar-accent text-sidebar-accent-foreground font-semibold" : 
-                    "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                  )}
+                  className="justify-start w-full hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                   tooltip={item.label}
-                  isActive={isActive(item)}
+                  onClick={() => {
+                    if (item.action) item.action();
+                    handleNavItemClick(); // Also close sidebar for button-like items
+                  }}
                 >
-                  <item.icon className={cn("h-5 w-5", isActive(item) ? "text-primary" : "text-sidebar-foreground/70 group-hover/menu-button:text-sidebar-accent-foreground")} />
+                  <item.icon className="h-5 w-5 text-sidebar-foreground/70 group-hover/menu-button:text-sidebar-accent-foreground" />
                   <span className="truncate">{item.label}</span>
                 </SidebarMenuButton>
-              </Link>
+              ) : (
+                <Link href={item.href} legacyBehavior passHref>
+                  <SidebarMenuButton
+                    variant="default"
+                    size="default"
+                    className={cn(
+                      "justify-start w-full",
+                      isActive(item) ?
+                      "bg-sidebar-accent text-sidebar-accent-foreground font-semibold" :
+                      "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                    )}
+                    tooltip={item.label}
+                    isActive={isActive(item)}
+                    onClick={handleNavItemClick} // Add click handler here
+                  >
+                    <item.icon className={cn("h-5 w-5", isActive(item) ? "text-primary" : "text-sidebar-foreground/70 group-hover/menu-button:text-sidebar-accent-foreground")} />
+                    <span className="truncate">{item.label}</span>
+                  </SidebarMenuButton>
+                </Link>
+              )}
             </SidebarMenuItem>
           ))}
         </SidebarMenu>
       </div>
+      {isAuthenticated && (
+        <div className="mt-auto p-2 border-t border-sidebar-border">
+          <Button variant="ghost" className="w-full justify-start" onClick={handleLogout}>
+            <LogOut className="mr-2 h-5 w-5" />
+            Logout
+          </Button>
+        </div>
+      )}
     </>
   );
 }

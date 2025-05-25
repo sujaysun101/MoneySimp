@@ -1,19 +1,39 @@
 // src/app/expenses/page.tsx
-"use client"; // This page uses client components with state (Tabs)
+"use client"; 
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ExpenseForm } from '@/components/expenses/ExpenseForm';
 import { BillUploadForm } from '@/components/expenses/BillUploadForm';
 import { ExpenseList } from '@/components/expenses/ExpenseList';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function ExpensesPage() {
-  const [key, setKey] = useState(0); // Used to force re-render of ExpenseList
+  const router = useRouter();
+  const [key, setKey] = useState(0); 
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const isLoggedIn = localStorage.getItem('moneySimpLoggedIn');
+    if (!isLoggedIn) {
+      router.replace('/login');
+    } else {
+      setIsLoading(false);
+    }
+  }, [router]);
 
   const handleExpenseAdded = () => {
-    setKey(prevKey => prevKey + 1); // Increment key to trigger re-render of ExpenseList
+    setKey(prevKey => prevKey + 1); 
   };
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-8 flex justify-center items-center min-h-[calc(100vh-10rem)]">
+        <p>Loading expenses...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-8">

@@ -1,17 +1,38 @@
 // src/app/insights/page.tsx
+"use client";
 import { SpendingBreakdownChart } from '@/components/insights/SpendingBreakdownChart';
 import { SpendingTrendChart } from '@/components/insights/SpendingTrendChart';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 export default function InsightsPage() {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const isLoggedIn = localStorage.getItem('moneySimpLoggedIn');
+    if (!isLoggedIn) {
+      router.replace('/login');
+    } else {
+      setIsLoading(false);
+    }
+  }, [router]);
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-8 flex justify-center items-center min-h-[calc(100vh-10rem)]">
+        <p>Loading insights...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-foreground">Spending Insights</h1>
         <p className="text-muted-foreground">Understand your financial habits with visual data.</p>
       </div>
-
-      {/* Removed the demo data alert */}
 
       <div className="grid gap-8 md:grid-cols-1 lg:grid-cols-2">
         <SpendingBreakdownChart />
