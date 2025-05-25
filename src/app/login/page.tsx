@@ -10,7 +10,27 @@ import { APP_NAME } from "@/lib/constants";
 import { useRouter } from "next/navigation";
 import React, { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import Link from "next/link"; // Added Link import
+import Link from "next/link";
+
+// Placeholder SVG icons
+const GoogleIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M21.35,11.1H12.18V13.83H18.69C18.36,17.64 15.19,19.27 12.19,19.27C8.36,19.27 5,16.25 5,12C5,7.9 8.2,4.73 12.19,4.73C14.76,4.73 16.04,5.87 17.01,6.74L19.27,4.49C17.22,2.62 14.92,1.5 12.19,1.5C7.22,1.5 3.31,5.36 3.31,12C3.31,18.64 7.22,22.5 12.19,22.5C17.14,22.5 21.09,18.96 21.09,12.33C21.09,11.76 21.35,11.1 21.35,11.1V11.1Z" />
+  </svg>
+);
+
+const XIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+  </svg>
+);
+
+const MicrosoftIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M11.4,11.4H0V0H11.4Zm0,12.6H0V12.6H11.4ZM24,11.4H12.6V0H24Zm0,12.6H12.6V12.6H24Z"/>
+  </svg>
+);
+
 
 export default function LoginPage() {
   const router = useRouter();
@@ -28,15 +48,11 @@ export default function LoginPage() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate login
-    console.log("Login attempt:", { email, password });
-    // In a real app, you would call your auth API here
-    // For demo purposes, we'll assume login is successful if email and password are not empty
     if (email && password) {
       localStorage.setItem('moneySimpLoggedIn', 'true');
-      localStorage.setItem('moneySimpUserEmail', email); // Store email for display, etc.
+      localStorage.setItem('moneySimpUserEmail', email); 
       toast({ title: "Login Successful", description: "Welcome back!" });
-      router.push('/dashboard'); // Redirect to dashboard
+      router.push('/dashboard'); 
     } else {
       toast({ title: "Login Failed", description: "Please enter email and password.", variant: "destructive" });
     }
@@ -44,26 +60,58 @@ export default function LoginPage() {
 
   const handleSignup = (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate signup
-    console.log("Signup attempt:", { email, password });
     if (password !== confirmPassword) {
       toast({ title: "Signup Failed", description: "Passwords do not match.", variant: "destructive" });
       return;
     }
     if (email && password) {
-      // In a real app, you'd check if user exists, then create user
       localStorage.setItem('moneySimpLoggedIn', 'true');
       localStorage.setItem('moneySimpUserEmail', email);
-      // Clear any existing app data for the "new" user
-      localStorage.removeItem('pennywise-budgets'); // Note: pennywise key used from previous app state
-      localStorage.removeItem('pennywise-expenses'); // Note: pennywise key used from previous app state
+      localStorage.removeItem('pennywise-budgets'); 
+      localStorage.removeItem('pennywise-expenses'); 
       
       toast({ title: "Signup Successful", description: `Welcome to ${APP_NAME}!` });
-      router.push('/dashboard'); // Redirect to dashboard
+      router.push('/dashboard'); 
     } else {
       toast({ title: "Signup Failed", description: "Please fill in all fields.", variant: "destructive" });
     }
   };
+
+  const handleSocialLogin = (provider: string) => {
+    toast({
+      title: `Social Login: ${provider}`,
+      description: `Attempting to log in with ${provider}. (Placeholder)`,
+    });
+    // In a real app, you would initiate the OAuth flow here.
+    // For demo, simulate login and redirect:
+    // localStorage.setItem('moneySimpLoggedIn', 'true');
+    // localStorage.setItem('moneySimpUserEmail', `${provider.toLowerCase()}@example.com`);
+    // router.push('/dashboard');
+  };
+
+  const SocialLoginButtons = () => (
+    <div className="space-y-4">
+      <div className="relative my-6">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-card px-2 text-muted-foreground">
+            Or continue with
+          </span>
+        </div>
+      </div>
+      <Button variant="outline" className="w-full" onClick={() => handleSocialLogin('Google')}>
+        <GoogleIcon /> <span className="ml-2">Continue with Google</span>
+      </Button>
+      <Button variant="outline" className="w-full" onClick={() => handleSocialLogin('X')}>
+        <XIcon /> <span className="ml-2">Continue with X</span>
+      </Button>
+      <Button variant="outline" className="w-full" onClick={() => handleSocialLogin('Microsoft')}>
+        <MicrosoftIcon /> <span className="ml-2">Continue with Microsoft</span>
+      </Button>
+    </div>
+  );
 
 
   return (
@@ -98,6 +146,7 @@ export default function LoginPage() {
                 </div>
                 <Button type="submit" className="w-full">Login</Button>
               </form>
+              <SocialLoginButtons />
             </CardContent>
           </Card>
         </TabsContent>
@@ -123,6 +172,7 @@ export default function LoginPage() {
                 </div>
                 <Button type="submit" className="w-full">Sign Up</Button>
               </form>
+              <SocialLoginButtons />
             </CardContent>
           </Card>
         </TabsContent>
