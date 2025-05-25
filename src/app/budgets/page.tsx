@@ -6,7 +6,8 @@ import { BudgetForm } from '@/components/budgets/BudgetForm';
 import { BudgetList } from '@/components/budgets/BudgetList';
 import type { Budget } from '@/lib/types';
 import { CATEGORIES } from '@/lib/constants';
-import { v4 as uuidv4 } from 'uuid'; // For generating unique IDs, npm install uuid @types/uuid
+import { v4 as uuidv4 } from 'uuid';
+import { DollarSign } from 'lucide-react'; // Added missing import
 
 // Mock data for expenses to calculate spent amounts
 const mockExpenses = [
@@ -24,17 +25,30 @@ export default function BudgetsPage() {
   useEffect(() => {
     const storedBudgets = localStorage.getItem('pennywise-budgets');
     if (storedBudgets) {
-      const parsedBudgets: Omit<Budget, 'icon' | 'name'>[] = JSON.parse(storedBudgets);
-      const fullBudgets = parsedBudgets.map(b => {
-        const category = CATEGORIES.find(c => c.id === b.categoryId);
-        return {
-          ...b,
-          name: category?.name || 'Unknown Category',
-          icon: category?.icon || DollarSign, // Fallback icon
-          spentAmount: calculateSpentAmount(b.categoryId) // Recalculate spent amount on load
-        };
-      });
-      setBudgets(fullBudgets);
+      try {
+        const parsedBudgets: Omit<Budget, 'icon' | 'name' | 'spentAmount'>[] = JSON.parse(storedBudgets);
+        const fullBudgets = parsedBudgets.map(b => {
+          const category = CATEGORIES.find(c => c.id === b.categoryId);
+          return {
+            ...b,
+            id: (b as any).id || uuidv4(), // Ensure ID exists, provide if legacy
+            name: category?.name || 'Unknown Category',
+            icon: category?.icon || DollarSign, 
+            amount: (b as any).amount || 0, // Ensure amount exists
+            spentAmount: calculateSpentAmount(b.categoryId) 
+          };
+        });
+        setBudgets(fullBudgets);
+      } catch (error) {
+          console.error("Failed to parse budgets from localStorage:", error);
+          localStorage.removeItem('pennywise-budgets'); // Clear corrupted data
+           // Initialize with some default budgets for demo
+          const initialBudgetsWithDefaults: Budget[] = [
+            { id: uuidv4(), categoryId: 'groceries', name: 'Groceries', icon: CATEGORIES.find(c=>c.id==='groceries')!.icon, amount: 300, spentAmount: 0 },
+            { id: uuidv4(), categoryId: 'entertainment', name: 'Entertainment', icon: CATEGORIES.find(c=>c.id==='entertainment')!.icon, amount: 150, spentAmount: 0 },
+          ].map(b => ({ ...b, spentAmount: calculateSpentAmount(b.categoryId) }));
+          setBudgets(initialBudgetsWithDefaults);
+      }
     } else {
       // Initialize with some default budgets for demo
       const initialBudgets: Budget[] = [
@@ -104,9 +118,3 @@ export default function BudgetsPage() {
     </div>
   );
 }
-
-// Need to import DollarSign from lucide-react if used as fallback.
-// Add to imports: import { DollarSign } from 'lucide-react';
-// For uuid: npm install uuid @types/uuid --save
-// Since I cannot modify package.json, I will rely on it already being there or use Math.random for IDs for now for simplicity if uuid not available.
-// For now, using uuidv4 for better uniqueness. Assume it's available.

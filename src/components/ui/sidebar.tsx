@@ -32,7 +32,7 @@ type SidebarContext = {
   setOpen: (open: boolean) => void
   openMobile: boolean
   setOpenMobile: (open: boolean) => void
-  isMobile: boolean
+  isMobile?: boolean // Can be undefined initially
   toggleSidebar: () => void
 }
 
@@ -53,6 +53,7 @@ const SidebarProvider = React.forwardRef<
     defaultOpen?: boolean
     open?: boolean
     onOpenChange?: (open: boolean) => void
+    collapsible?: "offcanvas" | "icon" | "none"; // Added collapsible to provider type for clarity, though not strictly used by provider itself for child control
   }
 >(
   (
@@ -63,15 +64,14 @@ const SidebarProvider = React.forwardRef<
       className,
       style,
       children,
+      // collapsible prop is part of the type but not directly used to control child Sidebar collapsible mode here
       ...props
     },
     ref
   ) => {
-    const isMobile = useIsMobile()
+    const isMobileHookValue = useIsMobile() // This can be boolean | undefined
     const [openMobile, setOpenMobile] = React.useState(false)
 
-    // This is the internal state of the sidebar.
-    // We use openProp and setOpenProp for control from outside the component.
     const [_open, _setOpen] = React.useState(defaultOpen)
     const open = openProp ?? _open
     const setOpen = React.useCallback(
@@ -82,21 +82,21 @@ const SidebarProvider = React.forwardRef<
         } else {
           _setOpen(openState)
         }
-
-        // This sets the cookie to keep the sidebar state.
-        document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
+        if (typeof document !== 'undefined') {
+          document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
+        }
       },
       [setOpenProp, open]
     )
 
-    // Helper to toggle the sidebar.
     const toggleSidebar = React.useCallback(() => {
-      return isMobile
-        ? setOpenMobile((open) => !open)
-        : setOpen((open) => !open)
-    }, [isMobile, setOpen, setOpenMobile])
+      // Handle isMobileHookValue potentially being undefined, though it usually resolves quickly.
+      // Default to desktop behavior if undefined during an unlikely early toggle.
+      return (isMobileHookValue === true)
+        ? setOpenMobile((current) => !current)
+        : setOpen((current) => !current)
+    }, [isMobileHookValue, setOpen, setOpenMobile])
 
-    // Adds a keyboard shortcut to toggle the sidebar.
     React.useEffect(() => {
       const handleKeyDown = (event: KeyboardEvent) => {
         if (
@@ -112,8 +112,6 @@ const SidebarProvider = React.forwardRef<
       return () => window.removeEventListener("keydown", handleKeyDown)
     }, [toggleSidebar])
 
-    // We add a state so that we can do data-state="expanded" or "collapsed".
-    // This makes it easier to style the sidebar with Tailwind classes.
     const state = open ? "expanded" : "collapsed"
 
     const contextValue = React.useMemo<SidebarContext>(
@@ -121,12 +119,12 @@ const SidebarProvider = React.forwardRef<
         state,
         open,
         setOpen,
-        isMobile,
+        isMobile: isMobileHookValue,
         openMobile,
         setOpenMobile,
         toggleSidebar,
       }),
-      [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]
+      [state, open, setOpen, isMobileHookValue, openMobile, setOpenMobile, toggleSidebar]
     )
 
     return (
@@ -192,7 +190,12 @@ const Sidebar = React.forwardRef<
       )
     }
 
-    if (isMobile) {
+    // If collapsible mode depends on isMobile, wait for isMobile to be determined.
+    if (isMobile === undefined) {
+      return null; // Or a suitable placeholder/skeleton that matches SSR intent
+    }
+
+    if (isMobile) { // isMobile is now a determined boolean
       return (
         <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
           <SheetContent
@@ -212,6 +215,7 @@ const Sidebar = React.forwardRef<
       )
     }
 
+    // Desktop version (isMobile is false)
     return (
       <div
         ref={ref}
@@ -583,7 +587,7 @@ const SidebarMenuButton = React.forwardRef<
         <TooltipContent
           side="right"
           align="center"
-          hidden={state !== "collapsed" || isMobile}
+          hidden={(state !== "collapsed" && state !== undefined) || isMobile === true || isMobile === undefined} // check isMobile for tooltip too
           {...tooltip}
         />
       </Tooltip>
