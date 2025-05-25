@@ -1,3 +1,4 @@
+
 // src/app/login/page.tsx
 "use client";
 
@@ -11,8 +12,10 @@ import { useRouter } from "next/navigation";
 import React, { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
+import { auth, googleProvider, microsoftProvider, twitterProvider } from '@/lib/firebase';
+import { signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, type AuthProvider } from 'firebase/auth';
 
-// Placeholder SVG icons
+// Placeholder SVG icons (remain unchanged for brevity, assume they are correct)
 const GoogleIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
     <path d="M21.35,11.1H12.18V13.83H18.69C18.36,17.64 15.19,19.27 12.19,19.27C8.36,19.27 5,16.25 5,12C5,7.9 8.2,4.73 12.19,4.73C14.76,4.73 16.04,5.87 17.01,6.74L19.27,4.49C17.22,2.62 14.92,1.5 12.19,1.5C7.22,1.5 3.31,5.36 3.31,12C3.31,18.64 7.22,22.5 12.19,22.5C17.14,22.5 21.09,18.96 21.09,12.33C21.09,11.76 21.35,11.1 21.35,11.1V11.1Z" />
@@ -37,56 +40,89 @@ export default function LoginPage() {
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState(""); // For signup
+  const [confirmPassword, setConfirmPassword] = useState(""); 
 
   useEffect(() => {
-    // If user is already logged in, redirect to dashboard
-    if (localStorage.getItem('moneySimpLoggedIn')) {
+    // Firebase auth state is now handled in RootLayout,
+    // but we can keep this for an initial redirect if someone lands here while already logged in via Firebase.
+    if (auth.currentUser) {
       router.replace('/dashboard');
     }
   }, [router]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleEmailPasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (email && password) {
-      localStorage.setItem('moneySimpLoggedIn', 'true');
-      localStorage.setItem('moneySimpUserEmail', email); 
-      toast({ title: "Login Successful", description: "Welcome back!" });
-      router.push('/dashboard'); 
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        localStorage.setItem('moneySimpLoggedIn', 'true');
+        localStorage.setItem('moneySimpUserEmail', userCredential.user.email || email);
+        toast({ title: "Login Successful", description: "Welcome back!" });
+        router.push('/dashboard');
+      } catch (error: any) {
+        console.error("Login failed:", error);
+        toast({ title: "Login Failed", description: error.message || "Please check your credentials.", variant: "destructive" });
+      }
     } else {
       toast({ title: "Login Failed", description: "Please enter email and password.", variant: "destructive" });
     }
   };
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleEmailPasswordSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) {
       toast({ title: "Signup Failed", description: "Passwords do not match.", variant: "destructive" });
       return;
     }
     if (email && password) {
-      localStorage.setItem('moneySimpLoggedIn', 'true');
-      localStorage.setItem('moneySimpUserEmail', email);
-      localStorage.removeItem('pennywise-budgets'); 
-      localStorage.removeItem('pennywise-expenses'); 
-      
-      toast({ title: "Signup Successful", description: `Welcome to ${APP_NAME}!` });
-      router.push('/dashboard'); 
+      try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        localStorage.setItem('moneySimpLoggedIn', 'true');
+        localStorage.setItem('moneySimpUserEmail', userCredential.user.email || email);
+        // Clear any potentially existing local storage data for new user
+        localStorage.removeItem('pennywise-budgets'); 
+        localStorage.removeItem('pennywise-expenses'); 
+        
+        toast({ title: "Signup Successful", description: `Welcome to ${APP_NAME}!` });
+        router.push('/dashboard');
+      } catch (error: any) {
+        console.error("Signup failed:", error);
+        toast({ title: "Signup Failed", description: error.message || "Could not create account.", variant: "destructive" });
+      }
     } else {
       toast({ title: "Signup Failed", description: "Please fill in all fields.", variant: "destructive" });
     }
   };
 
-  const handleSocialLogin = (provider: string) => {
-    toast({
-      title: `Social Login: ${provider}`,
-      description: `Attempting to log in with ${provider}. (Placeholder)`,
-    });
-    // In a real app, you would initiate the OAuth flow here.
-    // For demo, simulate login and redirect:
-    // localStorage.setItem('moneySimpLoggedIn', 'true');
-    // localStorage.setItem('moneySimpUserEmail', `${provider.toLowerCase()}@example.com`);
-    // router.push('/dashboard');
+  const handleSocialLogin = async (providerName: string, authProvider: AuthProvider) => {
+    if (providerName === "X") {
+        toast({
+          title: "X/Twitter Login",
+          description: "X/Twitter login setup can be more complex and may require additional configuration in your Firebase project and X Developer Portal.",
+          duration: 5000,
+        });
+        return;
+    }
+    try {
+      const result = await signInWithPopup(auth, authProvider);
+      const user = result.user;
+      localStorage.setItem('moneySimpLoggedIn', 'true');
+      localStorage.setItem('moneySimpUserEmail', user.email || `Logged in with ${providerName}`);
+      toast({ title: `Logged in with ${providerName}`, description: "Welcome!" });
+      router.push('/dashboard');
+    } catch (error: any) {
+      console.error(`Error with ${providerName} login:`, error);
+      let errorMessage = error.message || `Could not sign in with ${providerName}.`;
+      if (error.code === 'auth/account-exists-with-different-credential') {
+        errorMessage = 'An account already exists with the same email address but different sign-in credentials. Try signing in using a provider associated with this email.';
+      }
+      toast({
+        title: `${providerName} Login Failed`,
+        description: errorMessage,
+        variant: "destructive",
+        duration: 7000,
+      });
+    }
   };
 
   const SocialLoginButtons = () => (
@@ -101,18 +137,17 @@ export default function LoginPage() {
           </span>
         </div>
       </div>
-      <Button variant="outline" className="w-full" onClick={() => handleSocialLogin('Google')}>
+      <Button variant="outline" className="w-full" onClick={() => handleSocialLogin('Google', googleProvider)}>
         <GoogleIcon /> <span className="ml-2">Continue with Google</span>
       </Button>
-      <Button variant="outline" className="w-full" onClick={() => handleSocialLogin('X')}>
+      <Button variant="outline" className="w-full" onClick={() => handleSocialLogin('X', twitterProvider)}>
         <XIcon /> <span className="ml-2">Continue with X</span>
       </Button>
-      <Button variant="outline" className="w-full" onClick={() => handleSocialLogin('Microsoft')}>
+      <Button variant="outline" className="w-full" onClick={() => handleSocialLogin('Microsoft', microsoftProvider)}>
         <MicrosoftIcon /> <span className="ml-2">Continue with Microsoft</span>
       </Button>
     </div>
   );
-
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
@@ -135,7 +170,7 @@ export default function LoginPage() {
               <CardDescription>Enter your credentials to continue.</CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleLogin} className="space-y-6">
+              <form onSubmit={handleEmailPasswordLogin} className="space-y-6">
                 <div className="space-y-2">
                   <Label htmlFor="login-email">Email</Label>
                   <Input id="login-email" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
@@ -157,7 +192,7 @@ export default function LoginPage() {
               <CardDescription>Join {APP_NAME} today!</CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSignup} className="space-y-6">
+              <form onSubmit={handleEmailPasswordSignup} className="space-y-6">
                 <div className="space-y-2">
                   <Label htmlFor="signup-email">Email</Label>
                   <Input id="signup-email" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />

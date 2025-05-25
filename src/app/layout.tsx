@@ -1,6 +1,7 @@
+
 // src/app/layout.tsx
 "use client"; 
-import type { Metadata } from 'next'; // Metadata type can still be used if exported from a server component or this file is split
+import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { SidebarProvider, Sidebar, SidebarInset } from '@/components/ui/sidebar';
@@ -10,18 +11,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { APP_NAME } from '@/lib/constants';
 import React, { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { auth } from '@/lib/firebase'; // Import Firebase auth
+import { onAuthStateChanged, type User } from 'firebase/auth';
 
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
 });
-
-// Metadata generation should ideally be in a server component if this remains a client component.
-// For now, we'll keep it simple. Next.js might show warnings if this component is fully client-side.
-// export const metadata: Metadata = { // Cannot export metadata from client component
-//   title: APP_NAME,
-//   description: 'Your personal finance companion.',
-// };
 
 export default function RootLayout({
   children,
@@ -30,25 +26,43 @@ export default function RootLayout({
 }>) {
   const pathname = usePathname();
   const router = useRouter();
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null); // null initially, then boolean
+  const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true); // Start true, then set to false after first auth check
 
   useEffect(() => {
-    const loggedIn = localStorage.getItem('moneySimpLoggedIn') === 'true';
-    setIsAuthenticated(loggedIn);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setFirebaseUser(user);
+      setIsLoadingAuth(false); // Auth state determined
+      if (user) {
+        localStorage.setItem('moneySimpLoggedIn', 'true');
+        localStorage.setItem('moneySimpUserEmail', user.email || '');
+      } else {
+        localStorage.removeItem('moneySimpLoggedIn');
+        localStorage.removeItem('moneySimpUserEmail');
+      }
+    });
+    return () => unsubscribe(); // Cleanup subscription
+  }, []);
 
-    if (!loggedIn && pathname !== '/' && !pathname.startsWith('/login')) {
-      router.replace('/login');
-    } else if (loggedIn && (pathname === '/' || pathname.startsWith('/login'))) {
+  useEffect(() => {
+    if (isLoadingAuth) return; // Don't redirect until auth state is known
+
+    const isPublicPath = pathname === '/' || pathname.startsWith('/login');
+
+    if (firebaseUser && isPublicPath) {
+      // If logged in and on a public path, redirect to dashboard
       router.replace('/dashboard');
+    } else if (!firebaseUser && !isPublicPath) {
+      // If not logged in and on a protected path, redirect to login
+      router.replace('/login');
     }
-  }, [pathname, router]);
+  }, [firebaseUser, pathname, router, isLoadingAuth]);
 
-  // Determine if the current path is a public path (landing, login)
   const isPublicPath = pathname === '/' || pathname.startsWith('/login');
+  const isAuthenticated = !!firebaseUser;
 
-  if (isAuthenticated === null && !isPublicPath) {
-    // Still checking auth, and not on a public path, show loading or nothing
-    // This helps prevent flicker before redirection
+  if (isLoadingAuth && !isPublicPath) {
+    // Show loading state only for protected routes while auth is being checked
     return (
       <html lang="en" suppressHydrationWarning>
         <body className={`${inter.variable} font-sans antialiased`}>
@@ -60,7 +74,7 @@ export default function RootLayout({
   }
 
   if (isPublicPath || !isAuthenticated) {
-    // Render children directly for public paths or if not authenticated (and already on a public path)
+    // Render children directly for public paths or if not authenticated (and on a public path, or already redirected)
     return (
       <html lang="en" suppressHydrationWarning>
         <head>
