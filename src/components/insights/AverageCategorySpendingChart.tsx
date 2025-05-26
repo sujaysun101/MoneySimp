@@ -3,7 +3,7 @@
 "use client"
 
 import * as React from "react"
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis, Tooltip, LabelList } from "recharts"
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis, Tooltip, LabelList, Cell } from "recharts" // Added Cell
 import { BarChartHorizontalBig, Info, type LucideIcon } from "lucide-react" 
 
 import {
