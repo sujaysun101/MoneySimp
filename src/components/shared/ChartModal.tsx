@@ -22,15 +22,16 @@ interface ChartModalProps {
 export function ChartModal({ isOpen, onClose, title, children, description }: ChartModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[80vw] md:max-w-[70vw] lg:max-w-[60vw] xl:max-w-[50vw] h-[70vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[90vw] md:max-w-[80vw] lg:max-w-[70vw] xl:max-w-[60vw] h-[80vh] flex flex-col p-2 sm:p-4">
+        <DialogHeader className="px-2 pt-2 sm:px-4 sm:pt-4">
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
-        <div className="flex-grow overflow-auto p-4">
+        <div className="flex-grow overflow-auto"> {/* Removed p-4, padding handled by DialogContent or specific chart needs */}
           {children}
         </div>
       </DialogContent>
     </Dialog>
   );
 }
+
