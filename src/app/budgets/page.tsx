@@ -1,3 +1,4 @@
+
 // src/app/budgets/page.tsx
 "use client";
 import React, { useState, useEffect, useCallback } from 'react';
@@ -7,7 +8,7 @@ import { BudgetList } from '@/components/budgets/BudgetList';
 import type { Budget } from '@/lib/types';
 import { CATEGORIES, BUDGETS_STORAGE_KEY, EXPENSES_STORAGE_KEY } from '@/lib/constants';
 import { v4 as uuidv4 } from 'uuid';
-import { DollarSign, Edit } from 'lucide-react'; // Keep DollarSign if needed, Edit isn't directly used here
+import { DollarSign, Edit } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { Expense } from '@/lib/types';
 import { isSameMonth } from 'date-fns';
@@ -25,7 +26,7 @@ export default function BudgetsPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [budgets, setBudgets] = useState<Budget[]>([]);
-  const [userExpenses, setUserExpenses] = useState<Expense[]>([]); 
+  const [userExpenses, setUserExpenses] = useState<Expense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
 
@@ -47,19 +48,22 @@ export default function BudgetsPage() {
       try {
         const parsedExpenses: Expense[] = JSON.parse(storedExpenses).map((exp: any) => ({
           ...exp,
-          date: new Date(exp.date), 
+          date: new Date(exp.date),
         }));
         setUserExpenses(parsedExpenses);
       } catch (error) {
         console.error("Failed to parse expenses for budget calculation:", error);
+        setUserExpenses([]); // Ensure userExpenses is an array even on error
       }
+    } else {
+      setUserExpenses([]); // Initialize if no expenses are stored
     }
   }, [isLoading]);
 
 
   // Load budgets from local storage or initialize
   useEffect(() => {
-    if (isLoading) return; 
+    if (isLoading) return;
 
     const storedBudgets = localStorage.getItem(BUDGETS_STORAGE_KEY);
     if (storedBudgets) {
@@ -69,7 +73,7 @@ export default function BudgetsPage() {
           const category = CATEGORIES.find(c => c.id === b.categoryId);
           return {
             ...b,
-            id: (b as any).id || uuidv4(), 
+            id: (b as any).id || uuidv4(),
             name: category?.name || 'Unknown Category',
             icon: category?.icon || DollarSign,
             amount: typeof (b as any).amount === 'number' ? (b as any).amount : 0,
@@ -79,13 +83,13 @@ export default function BudgetsPage() {
         setBudgets(fullBudgets);
       } catch (error) {
           console.error("Failed to parse budgets from localStorage:", error);
-          localStorage.removeItem(BUDGETS_STORAGE_KEY); 
-          setBudgets([]); 
+          localStorage.removeItem(BUDGETS_STORAGE_KEY);
+          setBudgets([]);
       }
     } else {
-      setBudgets([]); 
+      setBudgets([]);
     }
-  }, [userExpenses, isLoading]); 
+  }, [userExpenses, isLoading]);
 
 
   // Save budgets to local storage whenever they change
@@ -105,7 +109,7 @@ export default function BudgetsPage() {
       setBudgets(prevBudgets =>
         prevBudgets.map(b =>
           b.id === editingBudgetId
-            ? { ...b, amount: data.amount, spentAmount: calculateSpentAmountForCurrentMonth(b.categoryId, userExpenses) } // Recalculate spentAmount just in case
+            ? { ...b, categoryId: data.categoryId, name: category.name, icon: category.icon, amount: data.amount, spentAmount: calculateSpentAmountForCurrentMonth(data.categoryId, userExpenses) }
             : b
         )
       );
@@ -146,24 +150,25 @@ export default function BudgetsPage() {
 
   const handleEditBudget = (budgetToEdit: Budget) => {
     setEditingBudget(budgetToEdit);
-    // Optionally scroll to form or give visual indication
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleCancelEdit = () => {
     setEditingBudget(null);
-    // Form will reset itself via useEffect when editingBudget prop changes
   };
-  
+
   // Update spent amounts when expenses change
   useEffect(() => {
-    setBudgets(prevBudgets => 
-        prevBudgets.map(b => ({
-            ...b,
-            spentAmount: calculateSpentAmountForCurrentMonth(b.categoryId, userExpenses)
-        }))
-    );
-  }, [userExpenses]);
+    // Only run if budgets have been loaded/initialized
+    if (budgets.length > 0 || localStorage.getItem(BUDGETS_STORAGE_KEY)) {
+        setBudgets(prevBudgets =>
+            prevBudgets.map(b => ({
+                ...b,
+                spentAmount: calculateSpentAmountForCurrentMonth(b.categoryId, userExpenses)
+            }))
+        );
+    }
+  }, [userExpenses, budgets.length]); // Added budgets.length to avoid running if budgets are empty initially
 
 
   if (isLoading) {
@@ -185,7 +190,7 @@ export default function BudgetsPage() {
         <CardHeader>
           <CardTitle>{editingBudget ? 'Edit Budget' : 'Set New Budget'}</CardTitle>
           <CardDescription>
-            {editingBudget 
+            {editingBudget
               ? `Update the budget amount for ${editingBudget.name}.`
               : 'Define a monthly budget for a specific category.'}
           </CardDescription>
@@ -200,10 +205,10 @@ export default function BudgetsPage() {
         </CardContent>
       </Card>
 
-      <BudgetList 
-        budgets={budgets} 
+      <BudgetList
+        budgets={budgets}
         onDeleteBudget={handleDeleteBudget}
-        onEditBudget={handleEditBudget} 
+        onEditBudget={handleEditBudget}
       />
     </div>
   );
