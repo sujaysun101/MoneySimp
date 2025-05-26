@@ -5,11 +5,11 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Label } from "@/components/ui/label"; // Ensure Label is imported if used directly, or FormLabel from Form
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { APP_NAME } from "@/lib/constants";
 import { useRouter } from "next/navigation";
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react"; // Removed useState for individual fields
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { auth, googleProvider, microsoftProvider, twitterProvider } from '@/lib/firebase';
@@ -20,8 +20,19 @@ import {
   type AuthProvider,
   getAdditionalUserInfo
 } from 'firebase/auth';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 
-// Placeholder SVG icons
+// Placeholder SVG icons (remain unchanged)
 const GoogleIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
     <path d="M21.35,11.1H12.18V13.83H18.69C18.36,17.64 15.19,19.27 12.19,19.27C8.36,19.27 5,16.25 5,12C5,7.9 8.2,4.73 12.19,4.73C14.76,4.73 16.04,5.87 17.01,6.74L19.27,4.49C17.22,2.62 14.92,1.5 12.19,1.5C7.22,1.5 3.31,5.36 3.31,12C3.31,18.64 7.22,22.5 12.19,22.5C17.14,22.5 21.09,18.96 21.09,12.33C21.09,11.76 21.35,11.1 21.35,11.1V11.1Z" />
@@ -40,13 +51,41 @@ const MicrosoftIcon = () => (
   </svg>
 );
 
+const loginSchema = z.object({
+  email: z.string().email({ message: "Invalid email address." }).min(1, { message: "Email is required." }),
+  password: z.string().min(1, { message: "Password is required." }),
+});
+type LoginFormValues = z.infer<typeof loginSchema>;
+
+const signupSchema = z.object({
+  email: z.string().email({ message: "Invalid email address." }).min(1, { message: "Email is required." }),
+  password: z.string()
+    .min(8, { message: "Password must be at least 8 characters." })
+    .regex(/[A-Z]/, { message: "Password must contain an uppercase letter." })
+    .regex(/[a-z]/, { message: "Password must contain a lowercase letter." })
+    .regex(/[0-9]/, { message: "Password must contain a number." })
+    .regex(/[^A-Za-z0-9]/, { message: "Password must contain a special character." }),
+  confirmPassword: z.string().min(1, { message: "Please confirm your password." }),
+}).refine(data => data.password === data.confirmPassword, {
+  message: "Passwords do not match.",
+  path: ["confirmPassword"], // Error shown on confirmPassword field
+});
+type SignupFormValues = z.infer<typeof signupSchema>;
+
 
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState(""); 
+
+  const loginForm = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: "", password: "" },
+  });
+
+  const signupForm = useForm<SignupFormValues>({
+    resolver: zodResolver(signupSchema),
+    defaultValues: { email: "", password: "", confirmPassword: "" },
+  });
 
   useEffect(() => {
     if (auth.currentUser) {
@@ -54,23 +93,9 @@ export default function LoginPage() {
     }
   }, [router]);
 
-  const handleEmailPasswordLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email && !password) {
-      toast({ title: "Login Failed", description: "Please enter your email and password.", variant: "destructive" });
-      return;
-    }
-    if (!email) {
-      toast({ title: "Login Failed", description: "Please enter your email.", variant: "destructive" });
-      return;
-    }
-    if (!password) {
-      toast({ title: "Login Failed", description: "Please enter your password.", variant: "destructive" });
-      return;
-    }
-
+  const handleEmailPasswordLogin = async (values: LoginFormValues) => {
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      await signInWithEmailAndPassword(auth, values.email, values.password);
       toast({ title: "Login Successful", description: "Welcome back!" });
       router.push('/dashboard'); 
     } catch (error: any) {
@@ -87,44 +112,23 @@ export default function LoginPage() {
     }
   };
 
-  const handleEmailPasswordSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email && !password && !confirmPassword) {
-      toast({ title: "Signup Failed", description: "Please fill in all fields.", variant: "destructive" });
-      return;
-    }
-    if (!email) {
-      toast({ title: "Signup Failed", description: "Please enter your email.", variant: "destructive" });
-      return;
-    }
-    if (!password) {
-      toast({ title: "Signup Failed", description: "Please enter a password.", variant: "destructive" });
-      return;
-    }
-    if (!confirmPassword) {
-      toast({ title: "Signup Failed", description: "Please confirm your password.", variant: "destructive" });
-      return;
-    }
-    if (password !== confirmPassword) {
-      toast({ title: "Signup Failed", description: "Passwords do not match. Please try again.", variant: "destructive" });
-      return;
-    }
-
+  const handleEmailPasswordSignup = async (values: SignupFormValues) => {
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      await createUserWithEmailAndPassword(auth, values.email, values.password);
       localStorage.removeItem('pennywise-budgets'); 
       localStorage.removeItem('pennywise-expenses'); 
       
       toast({ title: "Signup Successful", description: `Welcome to ${APP_NAME}!` });
       router.push('/dashboard'); 
-    } catch (error: any)
-    {
+    } catch (error: any) {
       console.error("Signup failed:", error);
       let description = "Could not create account. Please try again.";
       if (error.code === 'auth/email-already-in-use') {
         description = "This email is already registered. Please log in instead.";
       } else if (error.code === 'auth/weak-password') {
-        description = "Password is too weak. It should be at least 6 characters long.";
+        // This Firebase error is usually for passwords < 6 chars.
+        // Our Zod schema is stricter, so this is a fallback.
+        description = "Password is too weak. Ensure it meets all requirements (e.g., at least 6 characters as per Firebase default).";
       } else if (error.message) {
         description = error.message;
       }
@@ -219,17 +223,39 @@ export default function LoginPage() {
               <CardDescription>Enter your credentials to continue.</CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleEmailPasswordLogin} className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="login-email">Email</Label>
-                  <Input id="login-email" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="login-password">Password</Label>
-                  <Input id="login-password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} />
-                </div>
-                <Button type="submit" className="w-full">Login</Button>
-              </form>
+              <Form {...loginForm}>
+                <form onSubmit={loginForm.handleSubmit(handleEmailPasswordLogin)} className="space-y-6">
+                  <FormField
+                    control={loginForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input type="email" placeholder="you@example.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={loginForm.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="••••••••" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button type="submit" className="w-full" disabled={loginForm.formState.isSubmitting}>
+                    {loginForm.formState.isSubmitting ? "Logging in..." : "Login"}
+                  </Button>
+                </form>
+              </Form>
               <SocialLoginButtons />
             </CardContent>
           </Card>
@@ -241,21 +267,54 @@ export default function LoginPage() {
               <CardDescription>Join {APP_NAME} today!</CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleEmailPasswordSignup} className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email</Label>
-                  <Input id="signup-email" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password">Password</Label>
-                  <Input id="signup-password" type="password" placeholder="Choose a strong password" value={password} onChange={(e) => setPassword(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-confirm-password">Confirm Password</Label>
-                  <Input id="signup-confirm-password" type="password" placeholder="Re-enter your password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
-                </div>
-                <Button type="submit" className="w-full">Sign Up</Button>
-              </form>
+              <Form {...signupForm}>
+                <form onSubmit={signupForm.handleSubmit(handleEmailPasswordSignup)} className="space-y-6">
+                  <FormField
+                    control={signupForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input type="email" placeholder="you@example.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={signupForm.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="Choose a strong password" {...field} />
+                        </FormControl>
+                        <FormMessage /> 
+                        {/* FormMessage will show Zod errors including specific password rules */}
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={signupForm.control}
+                    name="confirmPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Confirm Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="Re-enter your password" {...field} />
+                        </FormControl>
+                        <FormMessage /> 
+                        {/* FormMessage will show "Passwords do not match" if applicable */}
+                      </FormItem>
+                    )}
+                  />
+                  <Button type="submit" className="w-full" disabled={signupForm.formState.isSubmitting}>
+                    {signupForm.formState.isSubmitting ? "Signing up..." : "Sign Up"}
+                  </Button>
+                </form>
+              </Form>
               <SocialLoginButtons />
             </CardContent>
           </Card>
@@ -267,3 +326,4 @@ export default function LoginPage() {
     </div>
   );
 }
+
