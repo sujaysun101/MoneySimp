@@ -21,7 +21,8 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from "@/components/ui/chart"
-import { CATEGORIES } from "@/lib/constants"
+// CATEGORIES import was removed as it's not used directly in this simplified version of XAxis tick rendering.
+// If you need category icons directly in ticks later, this approach would need to be revisited.
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,7 +34,7 @@ import { Button } from "@/components/ui/button"
 
 export interface BudgetActualDataPoint {
   categoryName: string;
-  categoryIcon?: LucideIcon;
+  categoryIcon?: LucideIcon; // Retained for tooltip, not for XAxis ticks in this simplified version
   budgetAmount: number;
   actualAmount: number;
   fillBudget: string;
@@ -64,8 +65,19 @@ export function BudgetVsActualChart({ data }: BudgetVsActualChartProps) {
             icon: TrendingUp, 
         },
     };
+    // Dynamically add categories from data to chartConfig for legend icons if needed,
+    // but the main use here is for the Bar components.
+    data.forEach(item => {
+        if (!config[item.categoryName]) {
+            config[item.categoryName] = {
+                label: item.categoryName,
+                color: item.fillActual, // Or some other logic for category color
+                icon: item.categoryIcon || Info,
+            }
+        }
+    });
     return config;
-  }, []);
+  }, [data]);
 
 
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -80,12 +92,12 @@ export function BudgetVsActualChart({ data }: BudgetVsActualChartProps) {
             <p className="font-semibold text-foreground">{label}</p>
           </div>
           {payload.map((entry: any) => (
-            <div key={entry.name} className="flex justify-between items-center">
+            <div key={entry.dataKey} className="flex justify-between items-center"> {/* Use dataKey for unique key */}
                 <span style={{ color: entry.color }} className="capitalize">
                 {entry.name === 'budgetAmount' ? 'Budget:' : 'Spent:'}
                 </span>
                 <span style={{ color: entry.color }} className="font-medium ml-2">
-                {`$${entry.value.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`}
+                {`$${Number(entry.value).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`}
                 </span>
             </div>
           ))}
@@ -190,24 +202,14 @@ export function BudgetVsActualChart({ data }: BudgetVsActualChartProps) {
                   tickLine={false}
                   tickMargin={10}
                   axisLine={false}
-                  angle={-35}
-                  textAnchor="end"
-                  height={60} 
-                  interval={0} 
-                  tick={({ x, y, payload }) => {
-                    const category = CATEGORIES.find(cat => cat.name === payload.value);
-                    const Icon = category?.icon || Info;
-                    return (
-                      <g transform={`translate(${x},${y})`}>
-                        <text x={0} y={0} dy={16} textAnchor="end" fill="hsl(var(--muted-foreground))" transform="rotate(-35)" className="text-xs">
-                          {payload.value}
-                        </text>
-                      </g>
-                    );
-                  }}
+                  angle={-35} // Rely on Recharts angle prop for rotation
+                  textAnchor="end" // Helps position rotated text
+                  height={60} // Adjust as needed for label length
+                  interval={0} // Ensure all labels are shown
+                  // Custom tick renderer removed to simplify and let Recharts handle rotation
                 />
                 <YAxis
-                  tickFormatter={(value) => `$${value.toLocaleString('en-US', {})}`}
+                  tickFormatter={(value) => `$${Number(value).toLocaleString('en-US', {})}`}
                   tickLine={false}
                   axisLine={false}
                   tickMargin={5}
@@ -219,10 +221,10 @@ export function BudgetVsActualChart({ data }: BudgetVsActualChartProps) {
                 />
                 <Legend content={<ChartLegendContent nameKey="name" />} verticalAlign="top" align="center" wrapperStyle={{paddingBottom: '10px'}}/>
                 <Bar dataKey="budgetAmount" name="Budgeted" fill="var(--color-budgetAmount)" radius={[4, 4, 0, 0]} barSize={15}>
-                   <LabelList dataKey="budgetAmount" position="top" formatter={(value: number) => value > 0 ? `$${value.toLocaleString(undefined, {maximumFractionDigits:0})}`: ''} className="text-xs fill-muted-foreground" />
+                   <LabelList dataKey="budgetAmount" position="top" formatter={(value: number) => value > 0 ? `$${Number(value).toLocaleString(undefined, {maximumFractionDigits:0})}`: ''} className="text-xs fill-muted-foreground" />
                 </Bar>
                 <Bar dataKey="actualAmount" name="Actual Spent" fill="var(--color-actualAmount)" radius={[4, 4, 0, 0]} barSize={15}>
-                   <LabelList dataKey="actualAmount" position="top" formatter={(value: number) => value > 0 ? `$${value.toLocaleString(undefined, {maximumFractionDigits:0})}`: ''} className="text-xs fill-muted-foreground" />
+                   <LabelList dataKey="actualAmount" position="top" formatter={(value: number) => value > 0 ? `$${Number(value).toLocaleString(undefined, {maximumFractionDigits:0})}`: ''} className="text-xs fill-muted-foreground" />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
