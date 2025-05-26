@@ -29,6 +29,7 @@ import { format } from 'date-fns';
 import { CATEGORIES } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import type { Expense } from '@/lib/types';
 
 const expenseFormSchema = z.object({
   description: z.string().min(1, "Description is required."),
@@ -37,13 +38,14 @@ const expenseFormSchema = z.object({
   date: z.date({ required_error: "Date is required." }),
 });
 
-type ExpenseFormValues = z.infer<typeof expenseFormSchema>;
+export type ExpenseFormValues = z.infer<typeof expenseFormSchema>;
 
 interface ExpenseFormProps {
+  onAddExpense: (expenseData: Omit<Expense, 'id' | 'billUrl'>) => void;
   onSubmitSuccess?: () => void; // Callback for successful submission
 }
 
-export function ExpenseForm({ onSubmitSuccess }: ExpenseFormProps) {
+export function ExpenseForm({ onAddExpense, onSubmitSuccess }: ExpenseFormProps) {
   const { toast } = useToast();
   const form = useForm<ExpenseFormValues>({
     resolver: zodResolver(expenseFormSchema),
@@ -56,12 +58,17 @@ export function ExpenseForm({ onSubmitSuccess }: ExpenseFormProps) {
   });
 
   function onSubmit(data: ExpenseFormValues) {
-    console.log('Expense data:', data); // Replace with actual submission logic
+    onAddExpense(data);
     toast({
       title: "Expense Added",
       description: `${data.description} for $${data.amount.toFixed(2)} added successfully.`,
     });
-    form.reset();
+    form.reset({ // Reset form to default values, including date
+      description: '',
+      amount: 0,
+      categoryId: '',
+      date: new Date(),
+    });
     if (onSubmitSuccess) onSubmitSuccess();
   }
 
@@ -101,7 +108,7 @@ export function ExpenseForm({ onSubmitSuccess }: ExpenseFormProps) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Category</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value} defaultValue="">
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Select a category" />
