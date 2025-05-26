@@ -2,7 +2,7 @@
 "use client"; 
 
 import { AIFinanceTipCard } from '@/components/shared/AIFinanceTipCard';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { DollarSign, TrendingUp, Landmark, PlusCircle } from 'lucide-react';
