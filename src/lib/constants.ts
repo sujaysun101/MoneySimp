@@ -1,7 +1,8 @@
 import type { Category } from './types';
 import {
   ShoppingCart, Home, Car, Film, Zap, HeartPulse, Utensils, Shirt, Plane, DollarSign,
-  LayoutDashboard, CreditCard, TrendingUp, BarChart3, Briefcase, BookOpen, Gift, LogIn, Send
+  LayoutDashboard, CreditCard, TrendingUp, BarChart3, Briefcase, BookOpen, Gift, LogIn, Send,
+  BarChartHorizontalBig, Target // Added new icons
 } from 'lucide-react';
 
 export const APP_NAME = "MoneySimp";
@@ -45,3 +46,7 @@ export const UNAUTH_NAV_ITEMS: NavItem[] = [
 
 // To determine page titles in Header
 export const ALL_NAV_ITEMS = [...AUTH_NAV_ITEMS, ...UNAUTH_NAV_ITEMS];
+
+// Local storage keys
+export const EXPENSES_STORAGE_KEY = 'moneySimp-expenses';
+export const BUDGETS_STORAGE_KEY = 'moneySimp-budgets'; // Standardized key for budgets

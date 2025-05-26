@@ -5,15 +5,18 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { BudgetForm } from '@/components/budgets/BudgetForm';
 import { BudgetList } from '@/components/budgets/BudgetList';
 import type { Budget } from '@/lib/types';
-import { CATEGORIES } from '@/lib/constants';
+import { CATEGORIES, BUDGETS_STORAGE_KEY, EXPENSES_STORAGE_KEY } from '@/lib/constants'; // Use constants for keys
 import { v4 as uuidv4 } from 'uuid';
-import { DollarSign, TrendingUp } from 'lucide-react'; // Added TrendingUp
+import { DollarSign } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import type { Expense } from '@/lib/types';
+import { isSameMonth } from 'date-fns';
 
 
-const calculateSpentAmount = (categoryId: string, expenses: any[] = []): number => {
+const calculateSpentAmountForCurrentMonth = (categoryId: string, expenses: Expense[] = []): number => {
+  const today = new Date();
   return expenses
-    .filter(expense => expense.categoryId === categoryId)
+    .filter(expense => expense.categoryId === categoryId && isSameMonth(new Date(expense.date), today))
     .reduce((sum, expense) => sum + expense.amount, 0);
 };
 
@@ -21,7 +24,7 @@ const calculateSpentAmount = (categoryId: string, expenses: any[] = []): number 
 export default function BudgetsPage() {
   const router = useRouter();
   const [budgets, setBudgets] = useState<Budget[]>([]);
-  const [userExpenses, setUserExpenses] = useState<any[]>([]); 
+  const [userExpenses, setUserExpenses] = useState<Expense[]>([]); 
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -33,11 +36,29 @@ export default function BudgetsPage() {
     }
   }, [router]);
 
+  // Load expenses (needed to calculate spent amounts for budgets)
+  useEffect(() => {
+    if (isLoading) return;
+    const storedExpenses = localStorage.getItem(EXPENSES_STORAGE_KEY);
+    if (storedExpenses) {
+      try {
+        const parsedExpenses: Expense[] = JSON.parse(storedExpenses).map((exp: any) => ({
+          ...exp,
+          date: new Date(exp.date), 
+        }));
+        setUserExpenses(parsedExpenses);
+      } catch (error) {
+        console.error("Failed to parse expenses for budget calculation:", error);
+      }
+    }
+  }, [isLoading]);
+
+
   // Load budgets from local storage or initialize
   useEffect(() => {
-    if (isLoading) return; // Don't load if still verifying auth
+    if (isLoading) return; 
 
-    const storedBudgets = localStorage.getItem('pennywise-budgets'); // Using old key for now
+    const storedBudgets = localStorage.getItem(BUDGETS_STORAGE_KEY);
     if (storedBudgets) {
       try {
         const parsedBudgets: Omit<Budget, 'icon' | 'name' | 'spentAmount' | 'id'>[] = JSON.parse(storedBudgets);
@@ -45,32 +66,31 @@ export default function BudgetsPage() {
           const category = CATEGORIES.find(c => c.id === b.categoryId);
           return {
             ...b,
-            id: (b as any).id || uuidv4(), // Ensure ID exists or generate
+            id: (b as any).id || uuidv4(), 
             name: category?.name || 'Unknown Category',
             icon: category?.icon || DollarSign,
-            amount: (b as any).amount || 0,
-            spentAmount: calculateSpentAmount(b.categoryId, userExpenses)
+            amount: (b as any).amount || 0, // Ensure amount is a number
+            spentAmount: calculateSpentAmountForCurrentMonth(b.categoryId, userExpenses)
           };
         });
         setBudgets(fullBudgets);
       } catch (error) {
           console.error("Failed to parse budgets from localStorage:", error);
-          localStorage.removeItem('pennywise-budgets'); 
+          localStorage.removeItem(BUDGETS_STORAGE_KEY); 
           setBudgets([]); 
       }
     } else {
       setBudgets([]); 
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userExpenses, isLoading]); 
+  }, [userExpenses, isLoading]); // Recalculate budgets if expenses or loading state changes
 
 
   // Save budgets to local storage whenever they change
   useEffect(() => {
     if (isLoading) return;
-    // Filter out properties not needed for storage (like icon, name)
-    const storableBudgets = budgets.map(({ id, categoryId, amount, spentAmount }) => ({ id, categoryId, amount, spentAmount }));
-    localStorage.setItem('pennywise-budgets', JSON.stringify(storableBudgets));
+    // Filter out properties not needed for storage (like icon, name, spentAmount)
+    const storableBudgets = budgets.map(({ id, categoryId, amount }) => ({ id, categoryId, amount }));
+    localStorage.setItem(BUDGETS_STORAGE_KEY, JSON.stringify(storableBudgets));
   }, [budgets, isLoading]);
 
 
@@ -84,7 +104,7 @@ export default function BudgetsPage() {
       name: category.name,
       icon: category.icon,
       amount: data.amount,
-      spentAmount: calculateSpentAmount(data.categoryId, userExpenses),
+      spentAmount: calculateSpentAmountForCurrentMonth(data.categoryId, userExpenses),
     };
     setBudgets(prevBudgets => [...prevBudgets, newBudget]);
   };
@@ -92,6 +112,17 @@ export default function BudgetsPage() {
   const handleDeleteBudget = (budgetId: string) => {
     setBudgets(prevBudgets => prevBudgets.filter(b => b.id !== budgetId));
   };
+  
+  // Update spent amounts when expenses change
+  useEffect(() => {
+    setBudgets(prevBudgets => 
+        prevBudgets.map(b => ({
+            ...b,
+            spentAmount: calculateSpentAmountForCurrentMonth(b.categoryId, userExpenses)
+        }))
+    );
+  }, [userExpenses]);
+
 
   if (isLoading) {
     return (
@@ -105,13 +136,13 @@ export default function BudgetsPage() {
     <div className="container mx-auto py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-foreground">Manage Budgets</h1>
-        <p className="text-muted-foreground">Set financial goals and track your progress.</p>
+        <p className="text-muted-foreground">Set financial goals and track your progress for the current month.</p>
       </div>
 
       <Card className="shadow-lg mb-8">
         <CardHeader>
           <CardTitle>Set New Budget</CardTitle>
-          <CardDescription>Define a budget for a specific category.</CardDescription>
+          <CardDescription>Define a monthly budget for a specific category.</CardDescription>
         </CardHeader>
         <CardContent>
           <BudgetForm
