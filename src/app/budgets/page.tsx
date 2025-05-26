@@ -1,18 +1,19 @@
 
 // src/app/budgets/page.tsx
 "use client";
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { BudgetForm, type BudgetFormValues } from '@/components/budgets/BudgetForm';
 import { BudgetList } from '@/components/budgets/BudgetList';
 import type { Budget } from '@/lib/types';
 import { CATEGORIES, BUDGETS_STORAGE_KEY, EXPENSES_STORAGE_KEY } from '@/lib/constants';
 import { v4 as uuidv4 } from 'uuid';
-import { DollarSign, Edit } from 'lucide-react';
+import { DollarSign, Edit } from 'lucide-react'; // Edit is used in BudgetList, DollarSign for default icon
 import { useRouter } from 'next/navigation';
 import type { Expense } from '@/lib/types';
 import { isSameMonth } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { auth } from '@/lib/firebase';
 
 const calculateSpentAmountForCurrentMonth = (categoryId: string, expenses: Expense[] = []): number => {
   const today = new Date();
@@ -29,11 +30,11 @@ export default function BudgetsPage() {
   const [userExpenses, setUserExpenses] = useState<Expense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
+  const initialSaveEffectRun = useRef(true); // Ref to control initial save
 
   useEffect(() => {
-    // Simulating auth check - Firebase auth is primary, this is a fallback/additional local flag
     const isLoggedIn = localStorage.getItem('moneySimpLoggedIn');
-    if (!isLoggedIn && !auth.currentUser) { // Check Firebase auth state as well
+    if (!isLoggedIn && !auth.currentUser) { 
       router.replace('/login');
     } else {
       setIsLoading(false);
@@ -48,15 +49,15 @@ export default function BudgetsPage() {
       try {
         const parsedExpenses: Expense[] = JSON.parse(storedExpenses).map((exp: any) => ({
           ...exp,
-          date: new Date(exp.date), // Ensure date is a Date object
+          date: new Date(exp.date), 
         }));
         setUserExpenses(parsedExpenses);
       } catch (error) {
-        console.error("Failed to parse expenses for budget calculation:", error);
-        setUserExpenses([]); // Ensure userExpenses is an array even on error
+        console.error("[BudgetsPage] Failed to parse expenses for budget calculation:", error);
+        setUserExpenses([]); 
       }
     } else {
-      setUserExpenses([]); // Initialize if no expenses are stored
+      setUserExpenses([]); 
     }
   }, [isLoading]);
 
@@ -80,28 +81,26 @@ export default function BudgetsPage() {
           return;
         }
         
-        // Ensure it's the correct type, though Omit is hard to check at runtime without more complex validation
         const parsedBudgets: Partial<Omit<Budget, 'icon' | 'name' | 'spentAmount' >>[] = parsedData;
-        console.log("[BudgetsPage] Successfully parsed budgets:", parsedBudgets);
+        console.log("[BudgetsPage] Successfully parsed budgets from storage:", parsedBudgets);
 
         const fullBudgets = parsedBudgets.map(b => {
-          if (!b || typeof b.categoryId !== 'string') {
+          if (!b || typeof b.categoryId !== 'string' || typeof b.amount !== 'number') { // Added amount type check
             console.warn("[BudgetsPage] Skipping invalid budget item during mapping:", b);
-            return null; // Skip invalid items
+            return null; 
           }
           const category = CATEGORIES.find(c => c.id === b.categoryId);
-          const budgetId = b.id || uuidv4(); // Ensure ID exists
-          const budgetAmount = typeof b.amount === 'number' ? b.amount : 0;
+          const budgetId = b.id || uuidv4(); 
           
           return {
             id: budgetId,
             categoryId: b.categoryId,
             name: category?.name || 'Unknown Category',
             icon: category?.icon || DollarSign,
-            amount: budgetAmount,
+            amount: b.amount, // amount is now guaranteed to be a number
             spentAmount: calculateSpentAmountForCurrentMonth(b.categoryId, userExpenses)
           };
-        }).filter(Boolean) as Budget[]; // Filter out nulls and assert type
+        }).filter(Boolean) as Budget[]; 
 
         console.log("[BudgetsPage] Mapped to full budgets:", fullBudgets);
         setBudgets(fullBudgets);
@@ -111,7 +110,7 @@ export default function BudgetsPage() {
           setBudgets([]);
       }
     } else {
-      console.log("[BudgetsPage] No stored budgets found under key:", BUDGETS_STORAGE_KEY);
+      console.log("[BudgetsPage] No stored budgets found under key:", BUDGETS_STORAGE_KEY, ". Initializing to empty array.");
       setBudgets([]);
     }
   }, [userExpenses, isLoading]);
@@ -119,19 +118,40 @@ export default function BudgetsPage() {
 
   // Save budgets to local storage whenever they change
   useEffect(() => {
-    if (isLoading) return; // Don't save if initial load is happening or auth not checked
-    // Filter out properties not needed for storage (like icon, name, spentAmount)
+    if (isLoading) {
+        initialSaveEffectRun.current = true; // Reset if loading becomes true again (e.g. navigating away and back)
+        return;
+    }
+
+    // This is the first time this effect runs AFTER isLoading became false for the current page load.
+    if (initialSaveEffectRun.current) {
+        initialSaveEffectRun.current = false; // Mark that this initial run has happened.
+        
+        // If budgets is empty at this point, it means either:
+        // 1. localStorage was empty and the loading effect set it to [].
+        // 2. The loading effect hasn't run yet to populate budgets from localStorage.
+        // In case 2, we don't want to save the current empty 'budgets' state and overwrite localStorage.
+        // So, if budgets is empty, we just return and let the loading effect populate it.
+        // The change in 'budgets' from the loading effect will then re-trigger this save effect.
+        if (budgets.length === 0 && !localStorage.getItem(BUDGETS_STORAGE_KEY)) { 
+            // Only skip if budgets are empty AND there was nothing in localStorage to begin with (or it was cleared)
+            // This ensures that if user deletes all budgets, it *does* save an empty array.
+            console.log("[BudgetsPage] Save to localStorage skipped on initial effect run post-loading because 'budgets' is currently empty and localStorage was also empty/null.");
+            return;
+        }
+    }
+    
     const storableBudgets = budgets.map(({ id, categoryId, amount }) => ({ id, categoryId, amount }));
     localStorage.setItem(BUDGETS_STORAGE_KEY, JSON.stringify(storableBudgets));
-    // console.log("[BudgetsPage] Saved budgets to localStorage:", storableBudgets); // Optional: for debugging saves
-  }, [budgets, isLoading]);
+    console.log("[BudgetsPage] Saved budgets to localStorage:", storableBudgets);
+}, [budgets, isLoading]);
 
 
   const handleBudgetSubmit = (data: BudgetFormValues, editingBudgetId?: string) => {
     const category = CATEGORIES.find(cat => cat.id === data.categoryId);
     if (!category) return;
 
-    if (editingBudgetId) { // Editing existing budget
+    if (editingBudgetId) { 
       setBudgets(prevBudgets =>
         prevBudgets.map(b =>
           b.id === editingBudgetId
@@ -143,8 +163,8 @@ export default function BudgetsPage() {
         title: "Budget Updated",
         description: `Budget for ${category.name} updated to $${data.amount.toFixed(2)}.`,
       });
-      setEditingBudget(null); // Clear editing state
-    } else { // Adding new budget
+      setEditingBudget(null); 
+    } else { 
       const newBudget: Budget = {
         id: uuidv4(),
         categoryId: data.categoryId,
@@ -170,7 +190,7 @@ export default function BudgetsPage() {
       variant: "destructive"
     });
     if (editingBudget && editingBudget.id === budgetId) {
-        setEditingBudget(null); // Clear edit form if the edited budget is deleted
+        setEditingBudget(null); 
     }
   };
 
@@ -185,7 +205,7 @@ export default function BudgetsPage() {
 
   // Update spent amounts when expenses change
   useEffect(() => {
-    if (budgets.length > 0) { // Simplified, only run if there are budgets to update
+    if (budgets.length > 0 && !isLoading) { // Also check isLoading here
         setBudgets(prevBudgets =>
             prevBudgets.map(b => ({
                 ...b,
@@ -193,7 +213,7 @@ export default function BudgetsPage() {
             }))
         );
     }
-  }, [userExpenses]); // Removed budgets.length to avoid potential loop if setBudgets triggers it
+  }, [userExpenses, isLoading]); // Added isLoading to dependencies
 
 
   if (isLoading) {
@@ -238,5 +258,3 @@ export default function BudgetsPage() {
     </div>
   );
 }
-// Make sure auth is imported if used directly
-import { auth } from '@/lib/firebase';
