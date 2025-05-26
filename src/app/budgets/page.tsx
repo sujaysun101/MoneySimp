@@ -31,9 +31,9 @@ export default function BudgetsPage() {
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
 
   useEffect(() => {
-    // Simulating auth check
+    // Simulating auth check - Firebase auth is primary, this is a fallback/additional local flag
     const isLoggedIn = localStorage.getItem('moneySimpLoggedIn');
-    if (!isLoggedIn) {
+    if (!isLoggedIn && !auth.currentUser) { // Check Firebase auth state as well
       router.replace('/login');
     } else {
       setIsLoading(false);
@@ -48,7 +48,7 @@ export default function BudgetsPage() {
       try {
         const parsedExpenses: Expense[] = JSON.parse(storedExpenses).map((exp: any) => ({
           ...exp,
-          date: new Date(exp.date),
+          date: new Date(exp.date), // Ensure date is a Date object
         }));
         setUserExpenses(parsedExpenses);
       } catch (error) {
@@ -65,28 +65,53 @@ export default function BudgetsPage() {
   useEffect(() => {
     if (isLoading) return;
 
+    console.log(`[BudgetsPage] Attempting to load budgets from localStorage with key: ${BUDGETS_STORAGE_KEY}`);
     const storedBudgets = localStorage.getItem(BUDGETS_STORAGE_KEY);
+    
     if (storedBudgets) {
+      console.log("[BudgetsPage] Found stored budgets string:", storedBudgets);
       try {
-        const parsedBudgets: Omit<Budget, 'icon' | 'name' | 'spentAmount' >[] = JSON.parse(storedBudgets);
+        const parsedData = JSON.parse(storedBudgets);
+        
+        if (!Array.isArray(parsedData)) {
+          console.error("[BudgetsPage] Stored budgets data is not an array. Clearing localStorage for this key. Data was:", parsedData);
+          localStorage.removeItem(BUDGETS_STORAGE_KEY);
+          setBudgets([]);
+          return;
+        }
+        
+        // Ensure it's the correct type, though Omit is hard to check at runtime without more complex validation
+        const parsedBudgets: Partial<Omit<Budget, 'icon' | 'name' | 'spentAmount' >>[] = parsedData;
+        console.log("[BudgetsPage] Successfully parsed budgets:", parsedBudgets);
+
         const fullBudgets = parsedBudgets.map(b => {
+          if (!b || typeof b.categoryId !== 'string') {
+            console.warn("[BudgetsPage] Skipping invalid budget item during mapping:", b);
+            return null; // Skip invalid items
+          }
           const category = CATEGORIES.find(c => c.id === b.categoryId);
+          const budgetId = b.id || uuidv4(); // Ensure ID exists
+          const budgetAmount = typeof b.amount === 'number' ? b.amount : 0;
+          
           return {
-            ...b,
-            id: (b as any).id || uuidv4(),
+            id: budgetId,
+            categoryId: b.categoryId,
             name: category?.name || 'Unknown Category',
             icon: category?.icon || DollarSign,
-            amount: typeof (b as any).amount === 'number' ? (b as any).amount : 0,
+            amount: budgetAmount,
             spentAmount: calculateSpentAmountForCurrentMonth(b.categoryId, userExpenses)
           };
-        });
+        }).filter(Boolean) as Budget[]; // Filter out nulls and assert type
+
+        console.log("[BudgetsPage] Mapped to full budgets:", fullBudgets);
         setBudgets(fullBudgets);
       } catch (error) {
-          console.error("Failed to parse budgets from localStorage:", error);
+          console.error("[BudgetsPage] Failed to parse budgets from localStorage. Content was:", storedBudgets, "Error:", error);
           localStorage.removeItem(BUDGETS_STORAGE_KEY);
           setBudgets([]);
       }
     } else {
+      console.log("[BudgetsPage] No stored budgets found under key:", BUDGETS_STORAGE_KEY);
       setBudgets([]);
     }
   }, [userExpenses, isLoading]);
@@ -94,10 +119,11 @@ export default function BudgetsPage() {
 
   // Save budgets to local storage whenever they change
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoading) return; // Don't save if initial load is happening or auth not checked
     // Filter out properties not needed for storage (like icon, name, spentAmount)
     const storableBudgets = budgets.map(({ id, categoryId, amount }) => ({ id, categoryId, amount }));
     localStorage.setItem(BUDGETS_STORAGE_KEY, JSON.stringify(storableBudgets));
+    // console.log("[BudgetsPage] Saved budgets to localStorage:", storableBudgets); // Optional: for debugging saves
   }, [budgets, isLoading]);
 
 
@@ -159,8 +185,7 @@ export default function BudgetsPage() {
 
   // Update spent amounts when expenses change
   useEffect(() => {
-    // Only run if budgets have been loaded/initialized
-    if (budgets.length > 0 || localStorage.getItem(BUDGETS_STORAGE_KEY)) {
+    if (budgets.length > 0) { // Simplified, only run if there are budgets to update
         setBudgets(prevBudgets =>
             prevBudgets.map(b => ({
                 ...b,
@@ -168,7 +193,7 @@ export default function BudgetsPage() {
             }))
         );
     }
-  }, [userExpenses, budgets.length]); // Added budgets.length to avoid running if budgets are empty initially
+  }, [userExpenses]); // Removed budgets.length to avoid potential loop if setBudgets triggers it
 
 
   if (isLoading) {
@@ -213,3 +238,5 @@ export default function BudgetsPage() {
     </div>
   );
 }
+// Make sure auth is imported if used directly
+import { auth } from '@/lib/firebase';
