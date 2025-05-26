@@ -49,6 +49,7 @@ export function SpendingBreakdownChart({
 }: SpendingBreakdownChartProps) {
   const chartRef = React.useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const titleString = title; // Use prop title for consistency
 
   const chartConfig = React.useMemo(() => {
     if (!data || data.length === 0) return {} as ChartConfig;
@@ -75,14 +76,14 @@ export function SpendingBreakdownChart({
     toast({ title: "Preparing Download...", description: "Your chart image is being generated." });
     try {
       html2canvas(chartRef.current, { 
-        backgroundColor: 'white', // Use a concrete color
+        backgroundColor: 'white', 
         scale: 2, 
         useCORS: true, 
       }).then(canvas => {
         const image = canvas.toDataURL("image/png");
         const link = document.createElement("a");
         link.href = image;
-        link.download = `${title.toLowerCase().replace(/\s+/g, '_')}_chart.png`;
+        link.download = `${titleString.toLowerCase().replace(/\s+/g, '_')}_chart.png`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -102,23 +103,50 @@ export function SpendingBreakdownChart({
       toast({ variant: "destructive", title: "Print Failed", description: "Chart element not found." });
       return;
     }
+    console.log("handlePrintChart: Chart element found", chartRef.current);
+
     const printElement = chartRef.current;
-    const originalId = printElement.id;
-    const dropdownMenu = printElement.querySelector('.chart-actions-menu');
+    const originalId = printElement.id; 
+    const dropdownMenu = printElement.querySelector('.chart-actions-menu'); 
+
+    if (dropdownMenu) {
+      console.log("handlePrintChart: Dropdown menu found");
+    } else {
+      console.warn("handlePrintChart: Dropdown menu NOT found. Printing may include it.");
+    }
     
     printElement.id = 'print-target';
     if(dropdownMenu) dropdownMenu.classList.add('no-print');
+    console.log("handlePrintChart: Set ID to 'print-target' and added 'no-print' class.");
 
     window.onafterprint = () => {
+      console.log("handlePrintChart: window.onafterprint called.");
+      if (originalId) {
+        printElement.id = originalId;
+      } else {
+        printElement.removeAttribute('id'); 
+      }
+      if(dropdownMenu) dropdownMenu.classList.remove('no-print');
+      window.onafterprint = null; 
+      console.log("handlePrintChart: Cleaned up after print.");
+    };
+
+    console.log("handlePrintChart: Calling window.print()...");
+    try {
+      window.print(); 
+      console.log("handlePrintChart: window.print() called successfully (dialog should be open or closed).");
+    } catch (e) {
+      console.error("handlePrintChart: Error calling window.print()", e);
+      toast({ variant: "destructive", title: "Print Error", description: "Could not initiate printing." });
+      // Perform cleanup here as well in case onafterprint doesn't fire
       if (originalId) {
         printElement.id = originalId;
       } else {
         printElement.removeAttribute('id');
       }
       if(dropdownMenu) dropdownMenu.classList.remove('no-print');
-      window.onafterprint = null; 
-    };
-    window.print();
+      window.onafterprint = null;
+    }
   };
   
   const hasData = data && data.length > 0;
@@ -129,7 +157,7 @@ export function SpendingBreakdownChart({
         <div className="flex items-center justify-between w-full">
             <div className="flex items-center">
                 <PieChartIcon className="h-5 w-5 mr-2 text-primary" />
-                <CardTitle className="text-lg">{title}</CardTitle>
+                <CardTitle className="text-lg">{titleString}</CardTitle>
             </div>
             {hasData && (
               <DropdownMenu>

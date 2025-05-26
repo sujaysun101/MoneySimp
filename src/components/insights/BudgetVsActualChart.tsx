@@ -46,7 +46,7 @@ interface BudgetVsActualChartProps {
 export function BudgetVsActualChart({ data }: BudgetVsActualChartProps) {
   const chartRef = React.useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-  const titleString = "Budget vs. Actual Spending"; // Renamed from title
+  const titleString = "Budget vs. Actual Spending"; 
 
   const chartConfig = React.useMemo(() => {
     if (!data || data.length === 0) return {} as ChartConfig;
@@ -146,14 +146,42 @@ export function BudgetVsActualChart({ data }: BudgetVsActualChartProps) {
       toast({ variant: "destructive", title: "Print Failed", description: "Chart element not found." });
       return;
     }
+    console.log("handlePrintChart: Chart element found", chartRef.current);
+
     const printElement = chartRef.current;
-    const originalId = printElement.id;
-    const dropdownMenu = printElement.querySelector('.chart-actions-menu');
+    const originalId = printElement.id; 
+    const dropdownMenu = printElement.querySelector('.chart-actions-menu'); 
+
+    if (dropdownMenu) {
+      console.log("handlePrintChart: Dropdown menu found");
+    } else {
+      console.warn("handlePrintChart: Dropdown menu NOT found. Printing may include it.");
+    }
     
     printElement.id = 'print-target';
     if(dropdownMenu) dropdownMenu.classList.add('no-print');
+    console.log("handlePrintChart: Set ID to 'print-target' and added 'no-print' class.");
 
     window.onafterprint = () => {
+      console.log("handlePrintChart: window.onafterprint called.");
+      if (originalId) {
+        printElement.id = originalId;
+      } else {
+        printElement.removeAttribute('id'); 
+      }
+      if(dropdownMenu) dropdownMenu.classList.remove('no-print');
+      window.onafterprint = null; 
+      console.log("handlePrintChart: Cleaned up after print.");
+    };
+
+    console.log("handlePrintChart: Calling window.print()...");
+    try {
+      window.print(); 
+      console.log("handlePrintChart: window.print() called successfully (dialog should be open or closed).");
+    } catch (e) {
+      console.error("handlePrintChart: Error calling window.print()", e);
+      toast({ variant: "destructive", title: "Print Error", description: "Could not initiate printing." });
+      // Perform cleanup here as well in case onafterprint doesn't fire
       if (originalId) {
         printElement.id = originalId;
       } else {
@@ -161,8 +189,7 @@ export function BudgetVsActualChart({ data }: BudgetVsActualChartProps) {
       }
       if(dropdownMenu) dropdownMenu.classList.remove('no-print');
       window.onafterprint = null;
-    };
-    window.print();
+    }
   };
 
   const hasData = data && data.length > 0;
