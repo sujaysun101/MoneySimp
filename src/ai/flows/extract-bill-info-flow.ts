@@ -15,7 +15,7 @@ import { CATEGORIES } from '@/lib/constants';
 
 const categoryNames = CATEGORIES.map(c => c.name).join(', ');
 
-export const ExtractBillInfoInputSchema = z.object({
+const ExtractBillInfoInputSchema = z.object({
   photoDataUri: z
     .string()
     .describe(
@@ -25,7 +25,7 @@ export const ExtractBillInfoInputSchema = z.object({
 });
 export type ExtractBillInfoInput = z.infer<typeof ExtractBillInfoInputSchema>;
 
-export const ExtractedExpenseItemSchema = z.object({
+const ExtractedExpenseItemSchema = z.object({
   description: z.string().describe('Detailed description of the expense item or service.'),
   amount: z.number().describe('The monetary amount of the expense item.'),
   date: z.string().describe('The date of the transaction in YYYY-MM-DD format. If not found, use current date.'),
@@ -34,7 +34,7 @@ export const ExtractedExpenseItemSchema = z.object({
 });
 export type ExtractedExpenseItem = z.infer<typeof ExtractedExpenseItemSchema>;
 
-export const ExtractBillInfoOutputSchema = z.object({
+const ExtractBillInfoOutputSchema = z.object({
   expenses: z.array(ExtractedExpenseItemSchema).describe('A list of extracted expense items from the bill. If the bill represents a single transaction, this array will contain one item. If multiple distinct items are on the bill that could be separate expenses, list them individually.'),
 });
 export type ExtractBillInfoOutput = z.infer<typeof ExtractBillInfoOutputSchema>;
@@ -117,9 +117,17 @@ const extractBillInfoFlow = ai.defineFlow(
     
     const processedExpenses = output.expenses.map(exp => ({
       ...exp,
-      date: exp.date || currentDate,
+      date: exp.date || currentDate, // Ensure date is always set
+      categoryName: CATEGORIES.find(c => c.name.toLowerCase() === exp.categoryName?.toLowerCase()) ? exp.categoryName : "Other", // Validate category
     }));
 
     return { expenses: processedExpenses };
   }
 );
+
+// For clarity, explicitly export only what's needed externally
+export {
+  type ExtractBillInfoInput,
+  type ExtractedExpenseItem,
+  type ExtractBillInfoOutput
+};

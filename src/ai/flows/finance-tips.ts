@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview This file defines a Genkit flow for generating personalized financial tips based on user spending habits.
@@ -47,6 +48,16 @@ const generateFinanceTipFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
-    return output!;
+    if (!output) {
+      // Handle the case where output might be null or undefined, though Genkit definePrompt with schema should ensure structure
+      return { tip: "Could not generate a tip at this moment. Try to create a clear budget." };
+    }
+    return output;
   }
 );
+
+// Explicitly export only types and the main async function
+export {
+    type FinanceTipInput,
+    type FinanceTipOutput
+};
