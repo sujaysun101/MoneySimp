@@ -40,10 +40,12 @@ export const ExtractBillInfoOutputSchema = z.object({
 export type ExtractBillInfoOutput = z.infer<typeof ExtractBillInfoOutputSchema>;
 
 
+// This is the only function that needs to be exported for external use.
 export async function extractBillInfo(input: ExtractBillInfoInput): Promise<ExtractBillInfoOutput> {
   return extractBillInfoFlow(input);
 }
 
+// Internal prompt definition - not exported
 const prompt = ai.definePrompt({
   name: 'extractBillInfoPrompt',
   input: {schema: ExtractBillInfoInputSchema},
@@ -89,6 +91,7 @@ Example for a utility bill:
 `,
 });
 
+// Internal flow definition - not exported
 const extractBillInfoFlow = ai.defineFlow(
   {
     name: 'extractBillInfoFlow',
@@ -96,14 +99,11 @@ const extractBillInfoFlow = ai.defineFlow(
     outputSchema: ExtractBillInfoOutputSchema,
   },
   async (input) => {
-    // Add a default for date if AI fails to extract one.
-    // For a more robust solution, you might want to pass the current date from the client.
     const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
     const {output} = await prompt(input);
 
     if (!output || !output.expenses || output.expenses.length === 0) {
-      // Fallback if AI returns nothing useful
       return {
         expenses: [{
           description: "Unable to extract details from bill",
@@ -114,7 +114,7 @@ const extractBillInfoFlow = ai.defineFlow(
         }]
       };
     }
-    // Ensure all expenses have a date
+    
     const processedExpenses = output.expenses.map(exp => ({
       ...exp,
       date: exp.date || currentDate,
