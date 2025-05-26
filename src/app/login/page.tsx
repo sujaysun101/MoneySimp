@@ -13,9 +13,15 @@ import React, { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { auth, googleProvider, microsoftProvider, twitterProvider } from '@/lib/firebase';
-import { signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, type AuthProvider } from 'firebase/auth';
+import { 
+  signInWithPopup, 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  type AuthProvider,
+  getAdditionalUserInfo
+} from 'firebase/auth';
 
-// Placeholder SVG icons (remain unchanged for brevity, assume they are correct)
+// Placeholder SVG icons
 const GoogleIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
     <path d="M21.35,11.1H12.18V13.83H18.69C18.36,17.64 15.19,19.27 12.19,19.27C8.36,19.27 5,16.25 5,12C5,7.9 8.2,4.73 12.19,4.73C14.76,4.73 16.04,5.87 17.01,6.74L19.27,4.49C17.22,2.62 14.92,1.5 12.19,1.5C7.22,1.5 3.31,5.36 3.31,12C3.31,18.64 7.22,22.5 12.19,22.5C17.14,22.5 21.09,18.96 21.09,12.33C21.09,11.76 21.35,11.1 21.35,11.1V11.1Z" />
@@ -43,8 +49,6 @@ export default function LoginPage() {
   const [confirmPassword, setConfirmPassword] = useState(""); 
 
   useEffect(() => {
-    // Firebase auth state is now handled in RootLayout,
-    // but we can keep this for an initial redirect if someone lands here while already logged in via Firebase.
     if (auth.currentUser) {
       router.replace('/dashboard');
     }
@@ -54,14 +58,20 @@ export default function LoginPage() {
     e.preventDefault();
     if (email && password) {
       try {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        localStorage.setItem('moneySimpLoggedIn', 'true');
-        localStorage.setItem('moneySimpUserEmail', userCredential.user.email || email);
+        await signInWithEmailAndPassword(auth, email, password);
         toast({ title: "Login Successful", description: "Welcome back!" });
-        router.push('/dashboard');
+        router.push('/dashboard'); // Redirect handled by RootLayout's onAuthStateChanged too
       } catch (error: any) {
         console.error("Login failed:", error);
-        toast({ title: "Login Failed", description: error.message || "Please check your credentials.", variant: "destructive" });
+        let description = "Please check your credentials and try again.";
+        if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email') {
+          description = "No account found with this email. Please sign up or check your email address.";
+        } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+          description = "Incorrect password. Please try again.";
+        } else if (error.message) {
+          description = error.message;
+        }
+        toast({ title: "Login Failed", description, variant: "destructive" });
       }
     } else {
       toast({ title: "Login Failed", description: "Please enter email and password.", variant: "destructive" });
@@ -76,18 +86,24 @@ export default function LoginPage() {
     }
     if (email && password) {
       try {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        localStorage.setItem('moneySimpLoggedIn', 'true');
-        localStorage.setItem('moneySimpUserEmail', userCredential.user.email || email);
+        await createUserWithEmailAndPassword(auth, email, password);
         // Clear any potentially existing local storage data for new user
         localStorage.removeItem('pennywise-budgets'); 
         localStorage.removeItem('pennywise-expenses'); 
         
         toast({ title: "Signup Successful", description: `Welcome to ${APP_NAME}!` });
-        router.push('/dashboard');
+        router.push('/dashboard'); // Redirect handled by RootLayout's onAuthStateChanged too
       } catch (error: any) {
         console.error("Signup failed:", error);
-        toast({ title: "Signup Failed", description: error.message || "Could not create account.", variant: "destructive" });
+        let description = "Could not create account. Please try again.";
+        if (error.code === 'auth/email-already-in-use') {
+          description = "This email is already registered. Please log in instead.";
+        } else if (error.code === 'auth/weak-password') {
+          description = "The password is too weak. Please choose a stronger password.";
+        } else if (error.message) {
+          description = error.message;
+        }
+        toast({ title: "Signup Failed", description, variant: "destructive" });
       }
     } else {
       toast({ title: "Signup Failed", description: "Please fill in all fields.", variant: "destructive" });
@@ -98,23 +114,35 @@ export default function LoginPage() {
     if (providerName === "X") {
         toast({
           title: "X/Twitter Login",
-          description: "X/Twitter login setup can be more complex and may require additional configuration in your Firebase project and X Developer Portal.",
-          duration: 5000,
+          description: "X/Twitter login setup can be complex and may require additional configuration in your Firebase project and X Developer Portal for full functionality.",
+          duration: 7000,
         });
-        return;
+        // Proceed with attempt for X, but with the warning
     }
     try {
       const result = await signInWithPopup(auth, authProvider);
       const user = result.user;
-      localStorage.setItem('moneySimpLoggedIn', 'true');
-      localStorage.setItem('moneySimpUserEmail', user.email || `Logged in with ${providerName}`);
-      toast({ title: `Logged in with ${providerName}`, description: "Welcome!" });
-      router.push('/dashboard');
+      const additionalInfo = getAdditionalUserInfo(result);
+
+      // RootLayout's onAuthStateChanged will set 'moneySimpLoggedIn' and 'moneySimpUserEmail'
+
+      if (additionalInfo?.isNewUser) {
+        localStorage.removeItem('pennywise-budgets'); 
+        localStorage.removeItem('pennywise-expenses');
+        toast({ title: `Signed up with ${providerName}`, description: `Welcome to ${APP_NAME}!` });
+      } else {
+        toast({ title: `Logged in with ${providerName}`, description: "Welcome back!" });
+      }
+      router.push('/dashboard'); // Redirect handled by RootLayout's onAuthStateChanged too
     } catch (error: any) {
       console.error(`Error with ${providerName} login:`, error);
       let errorMessage = error.message || `Could not sign in with ${providerName}.`;
       if (error.code === 'auth/account-exists-with-different-credential') {
         errorMessage = 'An account already exists with the same email address but different sign-in credentials. Try signing in using a provider associated with this email.';
+      } else if (error.code === 'auth/popup-closed-by-user') {
+        errorMessage = `Sign-in popup closed before completion.`;
+      } else if (error.code === 'auth/cancelled-popup-request') {
+        errorMessage = `Sign-in cancelled. Multiple popups might be open.`;
       }
       toast({
         title: `${providerName} Login Failed`,
@@ -218,3 +246,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
+    
