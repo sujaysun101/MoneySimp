@@ -21,8 +21,6 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from "@/components/ui/chart"
-// CATEGORIES import was removed as it's not used directly in this simplified version of XAxis tick rendering.
-// If you need category icons directly in ticks later, this approach would need to be revisited.
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,7 +32,7 @@ import { Button } from "@/components/ui/button"
 
 export interface BudgetActualDataPoint {
   categoryName: string;
-  categoryIcon?: LucideIcon; // Retained for tooltip, not for XAxis ticks in this simplified version
+  categoryIcon?: LucideIcon; 
   budgetAmount: number;
   actualAmount: number;
   fillBudget: string;
@@ -48,7 +46,7 @@ interface BudgetVsActualChartProps {
 export function BudgetVsActualChart({ data }: BudgetVsActualChartProps) {
   const chartRef = React.useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-  const title = "Budget vs. Actual Spending";
+  const titleString = "Budget vs. Actual Spending"; // Renamed from title
 
   const chartConfig = React.useMemo(() => {
     if (!data || data.length === 0) return {} as ChartConfig;
@@ -65,13 +63,11 @@ export function BudgetVsActualChart({ data }: BudgetVsActualChartProps) {
             icon: TrendingUp, 
         },
     };
-    // Dynamically add categories from data to chartConfig for legend icons if needed,
-    // but the main use here is for the Bar components.
     data.forEach(item => {
         if (!config[item.categoryName]) {
             config[item.categoryName] = {
                 label: item.categoryName,
-                color: item.fillActual, // Or some other logic for category color
+                color: item.fillActual, 
                 icon: item.categoryIcon || Info,
             }
         }
@@ -92,7 +88,7 @@ export function BudgetVsActualChart({ data }: BudgetVsActualChartProps) {
             <p className="font-semibold text-foreground">{label}</p>
           </div>
           {payload.map((entry: any) => (
-            <div key={entry.dataKey} className="flex justify-between items-center"> {/* Use dataKey for unique key */}
+            <div key={entry.dataKey} className="flex justify-between items-center">
                 <span style={{ color: entry.color }} className="capitalize">
                 {entry.name === 'budgetAmount' ? 'Budget:' : 'Spent:'}
                 </span>
@@ -116,40 +112,57 @@ export function BudgetVsActualChart({ data }: BudgetVsActualChartProps) {
   };
 
   const handleDownloadPNG = () => {
-    if (chartRef.current) {
-      toast({ title: "Preparing Download...", description: "Your chart image is being generated." });
-      html2canvas(chartRef.current, { backgroundColor: "hsl(var(--card))", scale: 2, useCORS: true }).then(canvas => {
+    if (!chartRef.current) {
+      toast({ variant: "destructive", title: "Download Failed", description: "Chart element not found." });
+      return;
+    }
+    toast({ title: "Preparing Download...", description: "Your chart image is being generated." });
+    try {
+      html2canvas(chartRef.current, { 
+        backgroundColor: 'white', 
+        scale: 2, 
+        useCORS: true,
+      }).then(canvas => {
         const image = canvas.toDataURL("image/png");
         const link = document.createElement("a");
         link.href = image;
-        link.download = `${title.toLowerCase().replace(/\s+/g, '_')}_chart.png`;
+        link.download = `${titleString.toLowerCase().replace(/\s+/g, '_')}_chart.png`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         toast({ title: "Download Started", description: "Chart image download has started." });
       }).catch(err => {
-        console.error("Error generating chart image:", err);
+        console.error("Error generating chart image with html2canvas:", err);
         toast({ variant: "destructive", title: "Download Failed", description: "Could not generate chart image." });
       });
+    } catch (error) {
+        console.error("Error in handleDownloadPNG:", error);
+        toast({ variant: "destructive", title: "Download Error", description: "An unexpected error occurred." });
     }
   };
 
   const handlePrintChart = () => {
-    if (chartRef.current) {
-      const printElement = chartRef.current;
-      const originalId = printElement.id;
-      const dropdownMenu = printElement.querySelector('.chart-actions-menu');
-      
-      printElement.id = 'print-target';
-      if(dropdownMenu) dropdownMenu.classList.add('no-print');
-
-      window.onafterprint = () => {
-        printElement.id = originalId;
-        if(dropdownMenu) dropdownMenu.classList.remove('no-print');
-        window.onafterprint = null;
-      };
-      window.print();
+    if (!chartRef.current) {
+      toast({ variant: "destructive", title: "Print Failed", description: "Chart element not found." });
+      return;
     }
+    const printElement = chartRef.current;
+    const originalId = printElement.id;
+    const dropdownMenu = printElement.querySelector('.chart-actions-menu');
+    
+    printElement.id = 'print-target';
+    if(dropdownMenu) dropdownMenu.classList.add('no-print');
+
+    window.onafterprint = () => {
+      if (originalId) {
+        printElement.id = originalId;
+      } else {
+        printElement.removeAttribute('id');
+      }
+      if(dropdownMenu) dropdownMenu.classList.remove('no-print');
+      window.onafterprint = null;
+    };
+    window.print();
   };
 
   const hasData = data && data.length > 0;
@@ -160,7 +173,7 @@ export function BudgetVsActualChart({ data }: BudgetVsActualChartProps) {
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center">
             <Target className="h-5 w-5 mr-2 text-primary" />
-            <CardTitle className="text-lg">{title}</CardTitle>
+            <CardTitle className="text-lg">{titleString}</CardTitle>
           </div>
           {hasData && (
             <DropdownMenu>
@@ -171,11 +184,11 @@ export function BudgetVsActualChart({ data }: BudgetVsActualChartProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onSelect={handleDownloadPNG}>
+                <DropdownMenuItem onSelect={handleDownloadPNG} disabled={!hasData}>
                   <Download className="mr-2 h-4 w-4" />
                   Download as PNG
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={handlePrintChart}>
+                <DropdownMenuItem onSelect={handlePrintChart} disabled={!hasData}>
                   <Printer className="mr-2 h-4 w-4" />
                   Print Chart
                 </DropdownMenuItem>
@@ -202,11 +215,10 @@ export function BudgetVsActualChart({ data }: BudgetVsActualChartProps) {
                   tickLine={false}
                   tickMargin={10}
                   axisLine={false}
-                  angle={-35} // Rely on Recharts angle prop for rotation
-                  textAnchor="end" // Helps position rotated text
-                  height={60} // Adjust as needed for label length
-                  interval={0} // Ensure all labels are shown
-                  // Custom tick renderer removed to simplify and let Recharts handle rotation
+                  angle={-35} 
+                  textAnchor="end" 
+                  height={60} 
+                  interval={0} 
                 />
                 <YAxis
                   tickFormatter={(value) => `$${Number(value).toLocaleString('en-US', {})}`}

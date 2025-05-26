@@ -68,12 +68,16 @@ export function SpendingBreakdownChart({
   }, [data])
 
   const handleDownloadPNG = () => {
-    if (chartRef.current) {
-      toast({ title: "Preparing Download...", description: "Your chart image is being generated." });
+    if (!chartRef.current) {
+      toast({ variant: "destructive", title: "Download Failed", description: "Chart element not found." });
+      return;
+    }
+    toast({ title: "Preparing Download...", description: "Your chart image is being generated." });
+    try {
       html2canvas(chartRef.current, { 
-        backgroundColor: "hsl(var(--card))", // Use card background for better image
-        scale: 2, // Increase scale for better resolution
-        useCORS: true, // If you ever use external images in charts
+        backgroundColor: 'white', // Use a concrete color
+        scale: 2, 
+        useCORS: true, 
       }).then(canvas => {
         const image = canvas.toDataURL("image/png");
         const link = document.createElement("a");
@@ -84,28 +88,37 @@ export function SpendingBreakdownChart({
         document.body.removeChild(link);
         toast({ title: "Download Started", description: "Chart image download has started." });
       }).catch(err => {
-        console.error("Error generating chart image:", err);
+        console.error("Error generating chart image with html2canvas:", err);
         toast({ variant: "destructive", title: "Download Failed", description: "Could not generate chart image." });
       });
+    } catch (error) {
+        console.error("Error in handleDownloadPNG:", error);
+        toast({ variant: "destructive", title: "Download Error", description: "An unexpected error occurred." });
     }
   };
 
   const handlePrintChart = () => {
-    if (chartRef.current) {
-      const printElement = chartRef.current;
-      const originalId = printElement.id;
-      const dropdownMenu = printElement.querySelector('.chart-actions-menu');
-      
-      printElement.id = 'print-target';
-      if(dropdownMenu) dropdownMenu.classList.add('no-print');
-
-      window.onafterprint = () => {
-        printElement.id = originalId;
-        if(dropdownMenu) dropdownMenu.classList.remove('no-print');
-        window.onafterprint = null; 
-      };
-      window.print();
+    if (!chartRef.current) {
+      toast({ variant: "destructive", title: "Print Failed", description: "Chart element not found." });
+      return;
     }
+    const printElement = chartRef.current;
+    const originalId = printElement.id;
+    const dropdownMenu = printElement.querySelector('.chart-actions-menu');
+    
+    printElement.id = 'print-target';
+    if(dropdownMenu) dropdownMenu.classList.add('no-print');
+
+    window.onafterprint = () => {
+      if (originalId) {
+        printElement.id = originalId;
+      } else {
+        printElement.removeAttribute('id');
+      }
+      if(dropdownMenu) dropdownMenu.classList.remove('no-print');
+      window.onafterprint = null; 
+    };
+    window.print();
   };
   
   const hasData = data && data.length > 0;
@@ -127,11 +140,11 @@ export function SpendingBreakdownChart({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onSelect={handleDownloadPNG}>
+                  <DropdownMenuItem onSelect={handleDownloadPNG} disabled={!hasData}>
                     <Download className="mr-2 h-4 w-4" />
                     Download as PNG
                   </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={handlePrintChart}>
+                  <DropdownMenuItem onSelect={handlePrintChart} disabled={!hasData}>
                     <Printer className="mr-2 h-4 w-4" />
                     Print Chart
                   </DropdownMenuItem>

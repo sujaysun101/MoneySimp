@@ -41,7 +41,7 @@ interface AverageCategorySpendingChartProps {
 export function AverageCategorySpendingChart({ data }: AverageCategorySpendingChartProps) {
   const chartRef = React.useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-  const title = "Average Monthly Spending";
+  const titleString = "Average Monthly Spending"; // Renamed from title
 
   const chartConfig = React.useMemo(() => {
     if (!data || data.length === 0) return {} as ChartConfig;
@@ -75,40 +75,57 @@ export function AverageCategorySpendingChart({ data }: AverageCategorySpendingCh
   };
 
   const handleDownloadPNG = () => {
-    if (chartRef.current) {
-      toast({ title: "Preparing Download...", description: "Your chart image is being generated." });
-      html2canvas(chartRef.current, { backgroundColor: "hsl(var(--card))", scale: 2, useCORS: true }).then(canvas => {
+    if (!chartRef.current) {
+      toast({ variant: "destructive", title: "Download Failed", description: "Chart element not found." });
+      return;
+    }
+    toast({ title: "Preparing Download...", description: "Your chart image is being generated." });
+    try {
+      html2canvas(chartRef.current, { 
+        backgroundColor: 'white', 
+        scale: 2, 
+        useCORS: true,
+      }).then(canvas => {
         const image = canvas.toDataURL("image/png");
         const link = document.createElement("a");
         link.href = image;
-        link.download = `${title.toLowerCase().replace(/\s+/g, '_')}_chart.png`;
+        link.download = `${titleString.toLowerCase().replace(/\s+/g, '_')}_chart.png`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         toast({ title: "Download Started", description: "Chart image download has started." });
       }).catch(err => {
-        console.error("Error generating chart image:", err);
+        console.error("Error generating chart image with html2canvas:", err);
         toast({ variant: "destructive", title: "Download Failed", description: "Could not generate chart image." });
       });
+    } catch (error) {
+        console.error("Error in handleDownloadPNG:", error);
+        toast({ variant: "destructive", title: "Download Error", description: "An unexpected error occurred." });
     }
   };
 
   const handlePrintChart = () => {
-    if (chartRef.current) {
-      const printElement = chartRef.current;
-      const originalId = printElement.id;
-      const dropdownMenu = printElement.querySelector('.chart-actions-menu');
-      
-      printElement.id = 'print-target';
-      if(dropdownMenu) dropdownMenu.classList.add('no-print');
-
-      window.onafterprint = () => {
-        printElement.id = originalId;
-        if(dropdownMenu) dropdownMenu.classList.remove('no-print');
-        window.onafterprint = null;
-      };
-      window.print();
+    if (!chartRef.current) {
+      toast({ variant: "destructive", title: "Print Failed", description: "Chart element not found." });
+      return;
     }
+    const printElement = chartRef.current;
+    const originalId = printElement.id;
+    const dropdownMenu = printElement.querySelector('.chart-actions-menu');
+    
+    printElement.id = 'print-target';
+    if(dropdownMenu) dropdownMenu.classList.add('no-print');
+
+    window.onafterprint = () => {
+      if (originalId) {
+        printElement.id = originalId;
+      } else {
+        printElement.removeAttribute('id');
+      }
+      if(dropdownMenu) dropdownMenu.classList.remove('no-print');
+      window.onafterprint = null;
+    };
+    window.print();
   };
 
   const hasData = data && data.length > 0;
@@ -119,7 +136,7 @@ export function AverageCategorySpendingChart({ data }: AverageCategorySpendingCh
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center">
             <BarChartHorizontalBig className="h-5 w-5 mr-2 text-primary" />
-            <CardTitle className="text-lg">{title}</CardTitle>
+            <CardTitle className="text-lg">{titleString}</CardTitle>
           </div>
           {hasData && (
             <DropdownMenu>
@@ -130,11 +147,11 @@ export function AverageCategorySpendingChart({ data }: AverageCategorySpendingCh
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onSelect={handleDownloadPNG}>
+                <DropdownMenuItem onSelect={handleDownloadPNG} disabled={!hasData}>
                   <Download className="mr-2 h-4 w-4" />
                   Download as PNG
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={handlePrintChart}>
+                <DropdownMenuItem onSelect={handlePrintChart} disabled={!hasData}>
                   <Printer className="mr-2 h-4 w-4" />
                   Print Chart
                 </DropdownMenuItem>
