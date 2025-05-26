@@ -5,14 +5,15 @@ import type { Budget } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { Trash2, TrendingUp } from 'lucide-react';
+import { Trash2, TrendingUp, Edit } from 'lucide-react'; // Added Edit icon
 
 interface BudgetListProps {
   budgets: Budget[];
   onDeleteBudget: (budgetId: string) => void;
+  onEditBudget: (budget: Budget) => void; // Changed to pass the whole budget object
 }
 
-export function BudgetList({ budgets, onDeleteBudget }: BudgetListProps) {
+export function BudgetList({ budgets, onDeleteBudget, onEditBudget }: BudgetListProps) {
   if (budgets.length === 0) {
     return (
       <Card className="mt-8 shadow-md">
@@ -48,9 +49,14 @@ export function BudgetList({ budgets, onDeleteBudget }: BudgetListProps) {
                     Target: ${budget.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </CardDescription>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => onDeleteBudget(budget.id)} aria-label={`Delete ${budget.name} budget`}>
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
+                <div className="flex items-center space-x-1">
+                  <Button variant="ghost" size="icon" onClick={() => onEditBudget(budget)} aria-label={`Edit ${budget.name} budget`}>
+                    <Edit className="h-4 w-4 text-blue-600" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => onDeleteBudget(budget.id)} aria-label={`Delete ${budget.name} budget`}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>

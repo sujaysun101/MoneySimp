@@ -1,17 +1,17 @@
 // src/app/budgets/page.tsx
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { BudgetForm } from '@/components/budgets/BudgetForm';
+import { BudgetForm, type BudgetFormValues } from '@/components/budgets/BudgetForm';
 import { BudgetList } from '@/components/budgets/BudgetList';
 import type { Budget } from '@/lib/types';
-import { CATEGORIES, BUDGETS_STORAGE_KEY, EXPENSES_STORAGE_KEY } from '@/lib/constants'; // Use constants for keys
+import { CATEGORIES, BUDGETS_STORAGE_KEY, EXPENSES_STORAGE_KEY } from '@/lib/constants';
 import { v4 as uuidv4 } from 'uuid';
-import { DollarSign } from 'lucide-react';
+import { DollarSign, Edit } from 'lucide-react'; // Keep DollarSign if needed, Edit isn't directly used here
 import { useRouter } from 'next/navigation';
 import type { Expense } from '@/lib/types';
 import { isSameMonth } from 'date-fns';
-
+import { useToast } from '@/hooks/use-toast';
 
 const calculateSpentAmountForCurrentMonth = (categoryId: string, expenses: Expense[] = []): number => {
   const today = new Date();
@@ -23,11 +23,14 @@ const calculateSpentAmountForCurrentMonth = (categoryId: string, expenses: Expen
 
 export default function BudgetsPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [userExpenses, setUserExpenses] = useState<Expense[]>([]); 
   const [isLoading, setIsLoading] = useState(true);
+  const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
 
   useEffect(() => {
+    // Simulating auth check
     const isLoggedIn = localStorage.getItem('moneySimpLoggedIn');
     if (!isLoggedIn) {
       router.replace('/login');
@@ -61,7 +64,7 @@ export default function BudgetsPage() {
     const storedBudgets = localStorage.getItem(BUDGETS_STORAGE_KEY);
     if (storedBudgets) {
       try {
-        const parsedBudgets: Omit<Budget, 'icon' | 'name' | 'spentAmount' | 'id'>[] = JSON.parse(storedBudgets);
+        const parsedBudgets: Omit<Budget, 'icon' | 'name' | 'spentAmount' >[] = JSON.parse(storedBudgets);
         const fullBudgets = parsedBudgets.map(b => {
           const category = CATEGORIES.find(c => c.id === b.categoryId);
           return {
@@ -69,7 +72,7 @@ export default function BudgetsPage() {
             id: (b as any).id || uuidv4(), 
             name: category?.name || 'Unknown Category',
             icon: category?.icon || DollarSign,
-            amount: (b as any).amount || 0, // Ensure amount is a number
+            amount: typeof (b as any).amount === 'number' ? (b as any).amount : 0,
             spentAmount: calculateSpentAmountForCurrentMonth(b.categoryId, userExpenses)
           };
         });
@@ -82,7 +85,7 @@ export default function BudgetsPage() {
     } else {
       setBudgets([]); 
     }
-  }, [userExpenses, isLoading]); // Recalculate budgets if expenses or loading state changes
+  }, [userExpenses, isLoading]); 
 
 
   // Save budgets to local storage whenever they change
@@ -94,23 +97,62 @@ export default function BudgetsPage() {
   }, [budgets, isLoading]);
 
 
-  const handleBudgetSet = (data: { categoryId: string; amount: number }) => {
+  const handleBudgetSubmit = (data: BudgetFormValues, editingBudgetId?: string) => {
     const category = CATEGORIES.find(cat => cat.id === data.categoryId);
     if (!category) return;
 
-    const newBudget: Budget = {
-      id: uuidv4(),
-      categoryId: data.categoryId,
-      name: category.name,
-      icon: category.icon,
-      amount: data.amount,
-      spentAmount: calculateSpentAmountForCurrentMonth(data.categoryId, userExpenses),
-    };
-    setBudgets(prevBudgets => [...prevBudgets, newBudget]);
+    if (editingBudgetId) { // Editing existing budget
+      setBudgets(prevBudgets =>
+        prevBudgets.map(b =>
+          b.id === editingBudgetId
+            ? { ...b, amount: data.amount, spentAmount: calculateSpentAmountForCurrentMonth(b.categoryId, userExpenses) } // Recalculate spentAmount just in case
+            : b
+        )
+      );
+      toast({
+        title: "Budget Updated",
+        description: `Budget for ${category.name} updated to $${data.amount.toFixed(2)}.`,
+      });
+      setEditingBudget(null); // Clear editing state
+    } else { // Adding new budget
+      const newBudget: Budget = {
+        id: uuidv4(),
+        categoryId: data.categoryId,
+        name: category.name,
+        icon: category.icon,
+        amount: data.amount,
+        spentAmount: calculateSpentAmountForCurrentMonth(data.categoryId, userExpenses),
+      };
+      setBudgets(prevBudgets => [...prevBudgets, newBudget]);
+      toast({
+        title: "Budget Set",
+        description: `Budget for ${category.name} set to $${data.amount.toFixed(2)}.`,
+      });
+    }
   };
 
   const handleDeleteBudget = (budgetId: string) => {
+    const budgetToDelete = budgets.find(b => b.id === budgetId);
     setBudgets(prevBudgets => prevBudgets.filter(b => b.id !== budgetId));
+    toast({
+      title: "Budget Deleted",
+      description: `Budget for ${budgetToDelete?.name || 'Category'} deleted.`,
+      variant: "destructive"
+    });
+    if (editingBudget && editingBudget.id === budgetId) {
+        setEditingBudget(null); // Clear edit form if the edited budget is deleted
+    }
+  };
+
+  const handleEditBudget = (budgetToEdit: Budget) => {
+    setEditingBudget(budgetToEdit);
+    // Optionally scroll to form or give visual indication
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingBudget(null);
+    // Form will reset itself via useEffect when editingBudget prop changes
   };
   
   // Update spent amounts when expenses change
@@ -141,18 +183,28 @@ export default function BudgetsPage() {
 
       <Card className="shadow-lg mb-8">
         <CardHeader>
-          <CardTitle>Set New Budget</CardTitle>
-          <CardDescription>Define a monthly budget for a specific category.</CardDescription>
+          <CardTitle>{editingBudget ? 'Edit Budget' : 'Set New Budget'}</CardTitle>
+          <CardDescription>
+            {editingBudget 
+              ? `Update the budget amount for ${editingBudget.name}.`
+              : 'Define a monthly budget for a specific category.'}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <BudgetForm
-            onBudgetSet={handleBudgetSet}
+            onBudgetSubmit={handleBudgetSubmit}
             existingBudgets={budgets.map(b => ({ categoryId: b.categoryId }))}
+            editingBudget={editingBudget}
+            onCancelEdit={handleCancelEdit}
           />
         </CardContent>
       </Card>
 
-      <BudgetList budgets={budgets} onDeleteBudget={handleDeleteBudget} />
+      <BudgetList 
+        budgets={budgets} 
+        onDeleteBudget={handleDeleteBudget}
+        onEditBudget={handleEditBudget} 
+      />
     </div>
   );
 }

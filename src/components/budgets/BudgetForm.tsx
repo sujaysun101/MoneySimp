@@ -1,7 +1,7 @@
 // src/components/budgets/BudgetForm.tsx
 "use client";
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -24,21 +24,24 @@ import {
 } from '@/components/ui/select';
 import { CATEGORIES } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, Save, XCircle } from 'lucide-react'; // Added Save and XCircle
+import type { Budget } from '@/lib/types';
 
 const budgetFormSchema = z.object({
   categoryId: z.string().min(1, "Category is required."),
   amount: z.coerce.number().positive("Budget amount must be positive."),
 });
 
-type BudgetFormValues = z.infer<typeof budgetFormSchema>;
+export type BudgetFormValues = z.infer<typeof budgetFormSchema>;
 
 interface BudgetFormProps {
-  onBudgetSet: (data: BudgetFormValues) => void;
-  existingBudgets: { categoryId: string }[]; // To disable already budgeted categories
+  onBudgetSubmit: (data: BudgetFormValues, editingBudgetId?: string) => void;
+  existingBudgets: { categoryId: string }[]; // To disable already budgeted categories in add mode
+  editingBudget: Budget | null;
+  onCancelEdit: () => void;
 }
 
-export function BudgetForm({ onBudgetSet, existingBudgets }: BudgetFormProps) {
+export function BudgetForm({ onBudgetSubmit, existingBudgets, editingBudget, onCancelEdit }: BudgetFormProps) {
   const { toast } = useToast();
   const form = useForm<BudgetFormValues>({
     resolver: zodResolver(budgetFormSchema),
@@ -48,15 +51,30 @@ export function BudgetForm({ onBudgetSet, existingBudgets }: BudgetFormProps) {
     },
   });
 
+  useEffect(() => {
+    if (editingBudget) {
+      form.reset({
+        categoryId: editingBudget.categoryId,
+        amount: editingBudget.amount,
+      });
+    } else {
+      form.reset({
+        categoryId: '',
+        amount: 0,
+      });
+    }
+  }, [editingBudget, form]);
+
   function onSubmit(data: BudgetFormValues) {
-    onBudgetSet(data);
-    const categoryName = CATEGORIES.find(c => c.id === data.categoryId)?.name || 'Category';
-    toast({
-      title: "Budget Set",
-      description: `Budget for ${categoryName} set to $${data.amount.toFixed(2)}.`,
-    });
-    form.reset();
+    if (editingBudget) {
+      onBudgetSubmit(data, editingBudget.id);
+    } else {
+      onBudgetSubmit(data);
+    }
+    // Toast is handled by parent
   }
+
+  const isEditMode = !!editingBudget;
 
   return (
     <Form {...form}>
@@ -68,7 +86,11 @@ export function BudgetForm({ onBudgetSet, existingBudgets }: BudgetFormProps) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Category</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select 
+                  onValueChange={field.onChange} 
+                  value={field.value} 
+                  disabled={isEditMode}
+                >
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Select a category" />
@@ -79,7 +101,8 @@ export function BudgetForm({ onBudgetSet, existingBudgets }: BudgetFormProps) {
                        <SelectItem 
                         key={category.id} 
                         value={category.id}
-                        disabled={existingBudgets.some(b => b.categoryId === category.id)}
+                        // Disable if editing OR if adding and category already has a budget
+                        disabled={isEditMode ? category.id !== editingBudget?.categoryId : existingBudgets.some(b => b.categoryId === category.id)}
                       >
                         <div className="flex items-center">
                           <category.icon className="mr-2 h-4 w-4 text-muted-foreground" />
@@ -107,9 +130,20 @@ export function BudgetForm({ onBudgetSet, existingBudgets }: BudgetFormProps) {
             )}
           />
         </div>
-        <Button type="submit" className="w-full md:w-auto">
-          <PlusCircle className="mr-2 h-4 w-4" /> Set Budget
-        </Button>
+        <div className="flex space-x-3">
+          <Button type="submit" className="w-full md:w-auto">
+            {isEditMode ? (
+              <> <Save className="mr-2 h-4 w-4" /> Update Budget </>
+            ) : (
+              <> <PlusCircle className="mr-2 h-4 w-4" /> Set Budget </>
+            )}
+          </Button>
+          {isEditMode && (
+            <Button type="button" variant="outline" onClick={onCancelEdit} className="w-full md:w-auto">
+              <XCircle className="mr-2 h-4 w-4" /> Cancel Edit
+            </Button>
+          )}
+        </div>
       </form>
     </Form>
   );
