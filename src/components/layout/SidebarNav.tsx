@@ -45,7 +45,7 @@ export function SidebarNav() {
       localStorage.removeItem('moneySimpUserEmail');
       toast({ title: "Logged Out", description: "You have been successfully logged out." });
       if (isMobile) setOpenMobile(false);
-      router.push('/login'); // Firebase onAuthStateChanged in RootLayout will also trigger redirect
+      router.push('/login'); 
     } catch (error) {
       console.error("Logout failed:", error);
       toast({ title: "Logout Failed", description: "Could not log you out. Please try again.", variant: "destructive"});
@@ -87,8 +87,9 @@ export function SidebarNav() {
                   <span className="truncate">{item.label}</span>
                 </SidebarMenuButton>
               ) : (
-                <Link href={item.href} legacyBehavior passHref>
+                <Link href={item.href} passHref legacyBehavior>
                   <SidebarMenuButton
+                    asChild // Ensure SidebarMenuButton acts as a Slot
                     variant="default"
                     size="default"
                     className={cn(
@@ -99,10 +100,12 @@ export function SidebarNav() {
                     )}
                     tooltip={item.label}
                     isActive={isActive(item)}
-                    onClick={handleNavItemClick} 
+                    // onClick on <a> tag handles mobile close, Link handles navigation
                   >
-                    <item.icon className={cn("h-5 w-5", isActive(item) ? "text-primary" : "text-sidebar-foreground/70 group-hover/menu-button:text-sidebar-accent-foreground")} />
-                    <span className="truncate">{item.label}</span>
+                    <a onClick={handleNavItemClick}>
+                      <item.icon className={cn("h-5 w-5", isActive(item) ? "text-primary" : "text-sidebar-foreground/70 group-hover/menu-button:text-sidebar-accent-foreground")} />
+                      <span className="truncate">{item.label}</span>
+                    </a>
                   </SidebarMenuButton>
                 </Link>
               )}
