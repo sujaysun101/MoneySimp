@@ -2,8 +2,8 @@
 "use client"
 
 import * as React from "react"
-import { PieChart as PieChartIcon, Info } from "lucide-react" // Added Info icon
-import { Pie, PieChart, ResponsiveContainer, Cell, Tooltip } from "recharts"
+import { PieChart as PieChartIcon, Info, type LucideIcon } from "lucide-react" 
+import { Pie, PieChart, ResponsiveContainer, Cell, Tooltip, Legend } from "recharts"
 
 import {
   Card,
@@ -17,52 +17,49 @@ import {
   ChartConfig,
   ChartContainer,
   ChartTooltipContent,
+  ChartLegendContent,
 } from "@/components/ui/chart"
-import { CATEGORIES } from "@/lib/constants"
 
-interface SpendingDataPoint {
+export interface SpendingDataPoint {
   category: string;
   amount: number;
   fill: string;
+  icon?: LucideIcon;
 }
 
-// No mock data generation function here
+interface SpendingBreakdownChartProps {
+  data: SpendingDataPoint[];
+}
 
-export function SpendingBreakdownChart() {
-  // Initialize with an empty array. Data should be fetched or passed as props in a real app.
-  const [spendingData, setSpendingData] = React.useState<SpendingDataPoint[]>([]);
-
-  // In a real application, useEffect would be used to fetch data.
-  // For now, it remains empty, and the chart will show a "No data" state.
-
+export function SpendingBreakdownChart({ data }: SpendingBreakdownChartProps) {
   const chartConfig = React.useMemo(() => {
-    if (spendingData.length === 0) return {} as ChartConfig;
-    return spendingData.reduce((acc, item) => {
-      const categoryDetails = CATEGORIES.find(c => c.name === item.category);
+    if (!data || data.length === 0) return {} as ChartConfig;
+    return data.reduce((acc, item) => {
       acc[item.category] = {
         label: item.category,
         color: item.fill,
-        icon: categoryDetails?.icon,
+        icon: item.icon,
       };
       return acc;
     }, {} as ChartConfig);
-  }, [spendingData]);
+  }, [data]);
 
   const totalAmount = React.useMemo(() => {
-    return spendingData.reduce((acc, curr) => acc + curr.amount, 0)
-  }, [spendingData])
+    if (!data) return 0;
+    return data.reduce((acc, curr) => acc + curr.amount, 0)
+  }, [data])
 
   return (
-    <Card className="flex flex-col shadow-lg min-h-[400px]">
+    <Card className="flex flex-col shadow-lg min-h-[450px]"> {/* Increased min-height for legend */}
       <CardHeader className="items-center pb-0">
         <CardTitle className="flex items-center text-lg">
           <PieChartIcon className="h-5 w-5 mr-2 text-primary" />
           Spending Breakdown
         </CardTitle>
-        <CardDescription>By Category - This Month</CardDescription>
+        <CardDescription>By Category - Current Data</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 flex items-center justify-center pb-0">
-        {spendingData.length === 0 ? (
+        {(!data || data.length === 0) ? (
           <div className="flex flex-col items-center text-center text-muted-foreground">
             <Info className="h-10 w-10 mb-3" />
             <p>No spending data available.</p>
@@ -80,28 +77,30 @@ export function SpendingBreakdownChart() {
                   content={<ChartTooltipContent hideLabel nameKey="category" />}
                 />
                 <Pie
-                  data={spendingData}
+                  data={data}
                   dataKey="amount"
                   nameKey="category"
                   innerRadius={60}
                   strokeWidth={5}
+                  labelLine={false}
                 >
-                  {spendingData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  {data.map((entry) => (
+                    <Cell key={`cell-${entry.category}`} fill={entry.fill} name={entry.category} />
                   ))}
                 </Pie>
+                 <Legend content={<ChartLegendContent />} />
               </PieChart>
             </ResponsiveContainer>
           </ChartContainer>
         )}
       </CardContent>
       <CardFooter className="flex-col gap-2 text-sm pt-4">
-        {spendingData.length > 0 && (
+        {data && data.length > 0 && (
           <>
             <div className="flex items-center gap-2 font-medium leading-none">
-              Total spent this month: {totalAmount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+              Total spent: {totalAmount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
             </div>
-            <div className="leading-none text-muted-foreground">
+            <div className="leading-none text-muted-foreground text-center">
               Showing breakdown of your spending categories.
             </div>
           </>

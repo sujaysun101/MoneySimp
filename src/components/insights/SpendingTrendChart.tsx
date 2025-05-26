@@ -3,7 +3,7 @@
 
 import * as React from "react"
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
-import { BarChart3, Info } from "lucide-react" // Added Info icon
+import { BarChart3, Info } from "lucide-react" 
 
 import {
   Card,
@@ -19,29 +19,25 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart"
 
-interface TrendDataPoint {
+export interface TrendDataPoint {
   month: string;
   totalSpending: number;
 }
 
-// No mock data generation function here
+interface SpendingTrendChartProps {
+  data: TrendDataPoint[];
+}
 
 const chartConfig = {
   totalSpending: {
     label: "Total Spending",
-    color: "hsl(var(--primary))", // Use primary color (Teal)
+    color: "hsl(var(--primary))", 
   },
 } satisfies ChartConfig
 
-export function SpendingTrendChart() {
-  // Initialize with an empty array. Data should be fetched or passed as props in a real app.
-  const [trendData, setTrendData] = React.useState<TrendDataPoint[]>([]);
-
-  // In a real application, useEffect would be used to fetch data.
-  // For now, it remains empty, and the chart will show a "No data" state.
-
+export function SpendingTrendChart({ data }: SpendingTrendChartProps) {
   return (
-    <Card className="shadow-lg min-h-[400px]">
+    <Card className="shadow-lg min-h-[450px]"> {/* Increased min-height */}
       <CardHeader>
         <CardTitle className="flex items-center text-lg">
           <BarChart3 className="h-5 w-5 mr-2 text-primary" />
@@ -50,7 +46,7 @@ export function SpendingTrendChart() {
         <CardDescription>Last 6 Months</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 flex items-center justify-center h-[300px] w-full">
-        {trendData.length === 0 ? (
+        {(!data || data.length === 0) ? (
           <div className="flex flex-col items-center text-center text-muted-foreground">
             <Info className="h-10 w-10 mb-3" />
             <p>No spending trend data available.</p>
@@ -59,31 +55,34 @@ export function SpendingTrendChart() {
         ) : (
           <ChartContainer config={chartConfig} className="h-full w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={trendData} accessibilityLayer>
+              <BarChart data={data} accessibilityLayer margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
                 <CartesianGrid vertical={false} />
                 <XAxis
                   dataKey="month"
                   tickLine={false}
                   tickMargin={10}
                   axisLine={false}
-                  tickFormatter={(value) => value.slice(0, 3)}
                 />
                 <YAxis
-                  tickFormatter={(value) => `$${(value / 1000).toLocaleString('en-US', {})}k`}
+                  tickFormatter={(value) => `$${value.toLocaleString('en-US', {})}`}
                   tickLine={false}
                   axisLine={false}
                   tickMargin={10}
+                  width={80} 
                  />
-                <Tooltip cursor={false} content={<ChartTooltipContent indicator="dashed" />} />
-                <Bar dataKey="totalSpending" fill="var(--color-totalSpending)" radius={4} />
+                <Tooltip 
+                    cursor={{ fill: 'hsl(var(--muted))', radius: 4 }} 
+                    content={<ChartTooltipContent indicator="dot" />} 
+                />
+                <Bar dataKey="totalSpending" fill="var(--color-totalSpending)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </ChartContainer>
         )}
       </CardContent>
       <CardFooter className="text-sm text-muted-foreground">
-        {trendData.length > 0 ? (
-          <p>This chart shows your total spending for available months.</p>
+        {data && data.length > 0 ? (
+          <p>This chart shows your total spending for the last 6 months.</p>
         ) : (
           <p>Track your expenses to see monthly trends.</p>
         )}
