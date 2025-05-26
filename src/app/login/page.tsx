@@ -56,57 +56,79 @@ export default function LoginPage() {
 
   const handleEmailPasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email && password) {
-      try {
-        await signInWithEmailAndPassword(auth, email, password);
-        toast({ title: "Login Successful", description: "Welcome back!" });
-        router.push('/dashboard'); // Redirect handled by RootLayout's onAuthStateChanged too
-      } catch (error: any) {
-        console.error("Login failed:", error);
-        let description = "Please check your credentials and try again.";
-        if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email') {
-          description = "No account found with this email. Please sign up or check your email address.";
-        } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-          description = "Incorrect password. Please try again.";
-        } else if (error.message) {
-          description = error.message;
-        }
-        toast({ title: "Login Failed", description, variant: "destructive" });
+    if (!email && !password) {
+      toast({ title: "Login Failed", description: "Please enter your email and password.", variant: "destructive" });
+      return;
+    }
+    if (!email) {
+      toast({ title: "Login Failed", description: "Please enter your email.", variant: "destructive" });
+      return;
+    }
+    if (!password) {
+      toast({ title: "Login Failed", description: "Please enter your password.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      toast({ title: "Login Successful", description: "Welcome back!" });
+      router.push('/dashboard'); 
+    } catch (error: any) {
+      console.error("Login failed:", error);
+      let description = "An unexpected error occurred. Please try again.";
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email') {
+        description = "No account found with this email. Please sign up or check your email address.";
+      } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        description = "Incorrect password. Please try again.";
+      } else if (error.message) {
+        description = error.message;
       }
-    } else {
-      toast({ title: "Login Failed", description: "Please enter email and password.", variant: "destructive" });
+      toast({ title: "Login Failed", description, variant: "destructive" });
     }
   };
 
   const handleEmailPasswordSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password !== confirmPassword) {
-      toast({ title: "Signup Failed", description: "Passwords do not match.", variant: "destructive" });
+    if (!email && !password && !confirmPassword) {
+      toast({ title: "Signup Failed", description: "Please fill in all fields.", variant: "destructive" });
       return;
     }
-    if (email && password) {
-      try {
-        await createUserWithEmailAndPassword(auth, email, password);
-        // Clear any potentially existing local storage data for new user
-        localStorage.removeItem('pennywise-budgets'); 
-        localStorage.removeItem('pennywise-expenses'); 
-        
-        toast({ title: "Signup Successful", description: `Welcome to ${APP_NAME}!` });
-        router.push('/dashboard'); // Redirect handled by RootLayout's onAuthStateChanged too
-      } catch (error: any) {
-        console.error("Signup failed:", error);
-        let description = "Could not create account. Please try again.";
-        if (error.code === 'auth/email-already-in-use') {
-          description = "This email is already registered. Please log in instead.";
-        } else if (error.code === 'auth/weak-password') {
-          description = "The password is too weak. Please choose a stronger password.";
-        } else if (error.message) {
-          description = error.message;
-        }
-        toast({ title: "Signup Failed", description, variant: "destructive" });
+    if (!email) {
+      toast({ title: "Signup Failed", description: "Please enter your email.", variant: "destructive" });
+      return;
+    }
+    if (!password) {
+      toast({ title: "Signup Failed", description: "Please enter a password.", variant: "destructive" });
+      return;
+    }
+    if (!confirmPassword) {
+      toast({ title: "Signup Failed", description: "Please confirm your password.", variant: "destructive" });
+      return;
+    }
+    if (password !== confirmPassword) {
+      toast({ title: "Signup Failed", description: "Passwords do not match. Please try again.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+      localStorage.removeItem('pennywise-budgets'); 
+      localStorage.removeItem('pennywise-expenses'); 
+      
+      toast({ title: "Signup Successful", description: `Welcome to ${APP_NAME}!` });
+      router.push('/dashboard'); 
+    } catch (error: any)
+    {
+      console.error("Signup failed:", error);
+      let description = "Could not create account. Please try again.";
+      if (error.code === 'auth/email-already-in-use') {
+        description = "This email is already registered. Please log in instead.";
+      } else if (error.code === 'auth/weak-password') {
+        description = "Password is too weak. It should be at least 6 characters long.";
+      } else if (error.message) {
+        description = error.message;
       }
-    } else {
-      toast({ title: "Signup Failed", description: "Please fill in all fields.", variant: "destructive" });
+      toast({ title: "Signup Failed", description, variant: "destructive" });
     }
   };
 
@@ -117,14 +139,11 @@ export default function LoginPage() {
           description: "X/Twitter login setup can be complex and may require additional configuration in your Firebase project and X Developer Portal for full functionality.",
           duration: 7000,
         });
-        // Proceed with attempt for X, but with the warning
     }
     try {
       const result = await signInWithPopup(auth, authProvider);
       const user = result.user;
       const additionalInfo = getAdditionalUserInfo(result);
-
-      // RootLayout's onAuthStateChanged will set 'moneySimpLoggedIn' and 'moneySimpUserEmail'
 
       if (additionalInfo?.isNewUser) {
         localStorage.removeItem('pennywise-budgets'); 
@@ -133,16 +152,18 @@ export default function LoginPage() {
       } else {
         toast({ title: `Logged in with ${providerName}`, description: "Welcome back!" });
       }
-      router.push('/dashboard'); // Redirect handled by RootLayout's onAuthStateChanged too
+      router.push('/dashboard');
     } catch (error: any) {
       console.error(`Error with ${providerName} login:`, error);
-      let errorMessage = error.message || `Could not sign in with ${providerName}.`;
+      let errorMessage = `Could not sign in with ${providerName}. Please try again.`;
       if (error.code === 'auth/account-exists-with-different-credential') {
         errorMessage = 'An account already exists with the same email address but different sign-in credentials. Try signing in using a provider associated with this email.';
       } else if (error.code === 'auth/popup-closed-by-user') {
         errorMessage = `Sign-in popup closed before completion.`;
       } else if (error.code === 'auth/cancelled-popup-request') {
         errorMessage = `Sign-in cancelled. Multiple popups might be open.`;
+      } else if (error.message) {
+        errorMessage = error.message;
       }
       toast({
         title: `${providerName} Login Failed`,
@@ -201,11 +222,11 @@ export default function LoginPage() {
               <form onSubmit={handleEmailPasswordLogin} className="space-y-6">
                 <div className="space-y-2">
                   <Label htmlFor="login-email">Email</Label>
-                  <Input id="login-email" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                  <Input id="login-email" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="login-password">Password</Label>
-                  <Input id="login-password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                  <Input id="login-password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} />
                 </div>
                 <Button type="submit" className="w-full">Login</Button>
               </form>
@@ -223,15 +244,15 @@ export default function LoginPage() {
               <form onSubmit={handleEmailPasswordSignup} className="space-y-6">
                 <div className="space-y-2">
                   <Label htmlFor="signup-email">Email</Label>
-                  <Input id="signup-email" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                  <Input id="signup-email" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-password">Password</Label>
-                  <Input id="signup-password" type="password" placeholder="Choose a strong password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                  <Input id="signup-password" type="password" placeholder="Choose a strong password" value={password} onChange={(e) => setPassword(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-confirm-password">Confirm Password</Label>
-                  <Input id="signup-confirm-password" type="password" placeholder="Re-enter your password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+                  <Input id="signup-confirm-password" type="password" placeholder="Re-enter your password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
                 </div>
                 <Button type="submit" className="w-full">Sign Up</Button>
               </form>
@@ -246,5 +267,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-    
