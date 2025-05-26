@@ -1,3 +1,4 @@
+
 // src/components/insights/SpendingTrendChart.tsx
 "use client"
 
@@ -37,7 +38,7 @@ const chartConfig = {
 
 export function SpendingTrendChart({ data }: SpendingTrendChartProps) {
   return (
-    <Card className="shadow-lg min-h-[450px]"> {/* Increased min-height */}
+    <Card className="shadow-lg min-h-[450px] h-full flex flex-col">
       <CardHeader>
         <CardTitle className="flex items-center text-lg">
           <BarChart3 className="h-5 w-5 mr-2 text-primary" />
@@ -45,7 +46,7 @@ export function SpendingTrendChart({ data }: SpendingTrendChartProps) {
         </CardTitle>
         <CardDescription>Last 6 Months</CardDescription>
       </CardHeader>
-      <CardContent className="flex-1 flex items-center justify-center h-[300px] w-full">
+      <CardContent className="flex-1 flex items-center justify-center h-full w-full">
         {(!data || data.length === 0) ? (
           <div className="flex flex-col items-center text-center text-muted-foreground">
             <Info className="h-10 w-10 mb-3" />
@@ -71,7 +72,7 @@ export function SpendingTrendChart({ data }: SpendingTrendChartProps) {
                   width={80} 
                  />
                 <Tooltip 
-                    cursor={{ fill: 'hsl(var(--muted))', radius: 4 }} 
+                    cursor={{ fill: 'hsl(var(--muted)/0.3)', radius: 4 }} 
                     content={<ChartTooltipContent indicator="dot" />} 
                 />
                 <Bar dataKey="totalSpending" fill="var(--color-totalSpending)" radius={[4, 4, 0, 0]} />

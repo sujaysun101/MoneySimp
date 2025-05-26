@@ -1,3 +1,4 @@
+
 // src/app/insights/page.tsx
 "use client";
 import { SpendingBreakdownChart, type SpendingDataPoint } from '@/components/insights/SpendingBreakdownChart';
@@ -6,13 +7,11 @@ import { BudgetVsActualChart, type BudgetActualDataPoint } from '@/components/in
 import { AverageCategorySpendingChart, type AverageSpendingDataPoint } from '@/components/insights/AverageCategorySpendingChart';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import type { Expense, Budget } from '@/lib/types';
-import { CATEGORIES } from '@/lib/constants';
-import { format, subMonths, startOfMonth, endOfMonth, getMonth, getYear, isSameMonth } from 'date-fns';
-
-const EXPENSES_STORAGE_KEY = 'moneySimp-expenses';
-const BUDGETS_STORAGE_KEY = 'moneySimp-budgets'; // Using the key from budgets page for now 'pennywise-budgets'
+import { CATEGORIES, EXPENSES_STORAGE_KEY, BUDGETS_STORAGE_KEY } from '@/lib/constants';
+import { format, subMonths, startOfMonth, isSameMonth } from 'date-fns';
+import { ChartModal } from '@/components/shared/ChartModal'; // Import the modal
 
 export default function InsightsPage() {
   const router = useRouter();
@@ -25,54 +24,19 @@ export default function InsightsPage() {
   const [budgetActualData, setBudgetActualData] = useState<BudgetActualDataPoint[]>([]);
   const [averageSpendingData, setAverageSpendingData] = useState<AverageSpendingDataPoint[]>([]);
 
-  useEffect(() => {
-    const isLoggedIn = localStorage.getItem('moneySimpLoggedIn');
-    if (!isLoggedIn) {
-      router.replace('/login');
-    } else {
-      // Load expenses
-      const storedExpenses = localStorage.getItem(EXPENSES_STORAGE_KEY);
-      if (storedExpenses) {
-        try {
-          const parsedExpenses: Expense[] = JSON.parse(storedExpenses).map((exp: any) => ({
-            ...exp,
-            date: new Date(exp.date),
-          }));
-          setExpenses(parsedExpenses);
-        } catch (error) {
-          console.error("Failed to parse expenses from localStorage:", error);
-          setExpenses([]);
-        }
-      }
-      // Load budgets
-      const storedBudgets = localStorage.getItem(BUDGETS_STORAGE_KEY);
-      if (storedBudgets) {
-        try {
-          // Assuming budgets are stored with categoryId and amount
-          const parsedBudgets: Omit<Budget, 'icon' | 'name' | 'spentAmount' >[] = JSON.parse(storedBudgets);
-           const fullBudgets = parsedBudgets.map(b => {
-            const category = CATEGORIES.find(c => c.id === b.categoryId);
-            return {
-              ...b,
-              id: (b as any).id || b.categoryId, // Ensure ID exists
-              name: category?.name || 'Unknown Category',
-              icon: category?.icon || (() => null), // Default icon
-              spentAmount: 0, // This will be calculated based on current expenses
-            };
-          });
-          setBudgets(fullBudgets);
-        } catch (error) {
-          console.error("Failed to parse budgets from localStorage:", error);
-          setBudgets([]);
-        }
-      }
-      setIsLoading(false);
-    }
-  }, [router]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalChartTitle, setModalChartTitle] = useState("");
+  const [modalChartContent, setModalChartContent] = useState<React.ReactNode | null>(null);
 
-  useEffect(() => {
+  const openChartInModal = (title: string, chartComponent: React.ReactNode) => {
+    setModalChartTitle(title);
+    setModalChartContent(chartComponent);
+    setIsModalOpen(true);
+  };
+
+  const processChartData = useCallback(() => {
     if (expenses.length > 0) {
-      // --- Process data for SpendingBreakdownChart (All-time) ---
+      // SpendingBreakdownChart (All-time)
       const categoryTotals: { [key: string]: number } = {};
       expenses.forEach(expense => {
         categoryTotals[expense.categoryId] = (categoryTotals[expense.categoryId] || 0) + expense.amount;
@@ -88,7 +52,7 @@ export default function InsightsPage() {
       }).sort((a, b) => b.amount - a.amount);
       setBreakdownData(newBreakdownData);
 
-      // --- Process data for SpendingTrendChart (Last 6 months) ---
+      // SpendingTrendChart (Last 6 months)
       const monthlyTotals: { [monthKey: string]: number } = {};
       const sixMonthsAgo = startOfMonth(subMonths(new Date(), 5));
       expenses.forEach(expense => {
@@ -110,7 +74,7 @@ export default function InsightsPage() {
       }
       setTrendData(newTrendData);
 
-      // --- Process data for AverageCategorySpendingChart ---
+      // AverageCategorySpendingChart
       const categoryMonthlySpending: { [categoryId: string]: { [monthKey: string]: number } } = {};
       expenses.forEach(expense => {
         const monthKey = format(new Date(expense.date), 'yyyy-MM');
@@ -119,7 +83,6 @@ export default function InsightsPage() {
         }
         categoryMonthlySpending[expense.categoryId][monthKey] = (categoryMonthlySpending[expense.categoryId][monthKey] || 0) + expense.amount;
       });
-
       const newAverageSpendingData = Object.keys(categoryMonthlySpending).map(categoryId => {
         const monthlyData = categoryMonthlySpending[categoryId];
         const numMonths = Object.keys(monthlyData).length;
@@ -134,18 +97,16 @@ export default function InsightsPage() {
         };
       }).sort((a, b) => b.averageSpending - a.averageSpending);
       setAverageSpendingData(newAverageSpendingData);
-
     } else {
       setBreakdownData([]);
       setTrendData([]);
       setAverageSpendingData([]);
     }
 
-    // --- Process data for BudgetVsActualChart (Current Month) ---
+    // BudgetVsActualChart (Current Month)
     if (budgets.length > 0) {
       const today = new Date();
       const currentMonthExpenses = expenses.filter(exp => isSameMonth(new Date(exp.date), today));
-      
       const newBudgetActualData = budgets.map(budget => {
         const actualAmount = currentMonthExpenses
           .filter(exp => exp.categoryId === budget.categoryId)
@@ -159,14 +120,66 @@ export default function InsightsPage() {
           fillBudget: 'hsl(var(--chart-2))',
           fillActual: 'hsl(var(--chart-1))',
         };
-      }).filter(item => item.budgetAmount > 0 || item.actualAmount > 0) // Only show if there's budget or spending
+      }).filter(item => item.budgetAmount > 0 || item.actualAmount > 0)
         .sort((a,b) => b.budgetAmount - a.budgetAmount);
       setBudgetActualData(newBudgetActualData);
     } else {
         setBudgetActualData([]);
     }
-
   }, [expenses, budgets]);
+
+
+  useEffect(() => {
+    const isLoggedIn = localStorage.getItem('moneySimpLoggedIn');
+    if (!isLoggedIn) {
+      router.replace('/login');
+      return;
+    }
+
+    // Load expenses
+    const storedExpenses = localStorage.getItem(EXPENSES_STORAGE_KEY);
+    if (storedExpenses) {
+      try {
+        const parsedExpenses: Expense[] = JSON.parse(storedExpenses).map((exp: any) => ({
+          ...exp,
+          date: new Date(exp.date),
+        }));
+        setExpenses(parsedExpenses);
+      } catch (error) {
+        console.error("Failed to parse expenses from localStorage:", error);
+        setExpenses([]);
+      }
+    }
+    // Load budgets
+    const storedBudgets = localStorage.getItem(BUDGETS_STORAGE_KEY);
+    if (storedBudgets) {
+      try {
+        const parsedBudgets: Omit<Budget, 'icon' | 'name' | 'spentAmount' >[] = JSON.parse(storedBudgets);
+         const fullBudgets = parsedBudgets.map(b => {
+          const category = CATEGORIES.find(c => c.id === b.categoryId);
+          return {
+            ...b,
+            id: (b as any).id || b.categoryId, 
+            name: category?.name || 'Unknown Category',
+            icon: category?.icon || (() => null), 
+            spentAmount: 0, 
+          };
+        });
+        setBudgets(fullBudgets);
+      } catch (error) {
+        console.error("Failed to parse budgets from localStorage:", error);
+        setBudgets([]);
+      }
+    }
+    setIsLoading(false);
+  }, [router]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      processChartData();
+    }
+  }, [isLoading, processChartData]);
+
 
   if (isLoading) {
     return (
@@ -180,16 +193,24 @@ export default function InsightsPage() {
     <div className="container mx-auto py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-foreground">Spending Insights</h1>
-        <p className="text-muted-foreground">Understand your financial habits with visual data.</p>
+        <p className="text-muted-foreground">Understand your financial habits with visual data. Click on charts to enlarge.</p>
       </div>
 
       <div className="grid gap-8 md:grid-cols-1 lg:grid-cols-2 mb-8">
-        <SpendingBreakdownChart data={breakdownData} />
-        <SpendingTrendChart data={trendData} />
+        <div className="cursor-pointer hover:shadow-xl transition-shadow rounded-lg" onClick={() => openChartInModal("Spending Breakdown (All Time)", <SpendingBreakdownChart data={breakdownData} />)}>
+          <SpendingBreakdownChart data={breakdownData} />
+        </div>
+        <div className="cursor-pointer hover:shadow-xl transition-shadow rounded-lg" onClick={() => openChartInModal("Monthly Spending Trend (Last 6 Months)", <SpendingTrendChart data={trendData} />)}>
+          <SpendingTrendChart data={trendData} />
+        </div>
       </div>
        <div className="grid gap-8 md:grid-cols-1 lg:grid-cols-2">
-        <BudgetVsActualChart data={budgetActualData} />
-        <AverageCategorySpendingChart data={averageSpendingData} />
+        <div className="cursor-pointer hover:shadow-xl transition-shadow rounded-lg" onClick={() => openChartInModal(`Budget vs. Actual Spending (${format(new Date(), 'MMMM yyyy')})`, <BudgetVsActualChart data={budgetActualData} />)}>
+          <BudgetVsActualChart data={budgetActualData} />
+        </div>
+        <div className="cursor-pointer hover:shadow-xl transition-shadow rounded-lg" onClick={() => openChartInModal("Average Monthly Spending per Category", <AverageCategorySpendingChart data={averageSpendingData} />)}>
+          <AverageCategorySpendingChart data={averageSpendingData} />
+        </div>
       </div>
 
       <Card className="mt-8 shadow-lg">
@@ -209,6 +230,13 @@ export default function InsightsPage() {
           </ul>
         </CardContent>
       </Card>
+       <ChartModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        title={modalChartTitle}
+      >
+        {modalChartContent}
+      </ChartModal>
     </div>
   );
 }

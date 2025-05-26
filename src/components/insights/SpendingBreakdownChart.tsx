@@ -1,3 +1,4 @@
+
 // src/components/insights/SpendingBreakdownChart.tsx
 "use client"
 
@@ -17,7 +18,7 @@ import {
   ChartConfig,
   ChartContainer,
   ChartTooltipContent,
-  ChartLegendContent,
+  ChartLegendContent, // Updated import
 } from "@/components/ui/chart"
 
 export interface SpendingDataPoint {
@@ -38,7 +39,7 @@ export function SpendingBreakdownChart({ data }: SpendingBreakdownChartProps) {
       acc[item.category] = {
         label: item.category,
         color: item.fill,
-        icon: item.icon,
+        icon: item.icon || PieChartIcon, // Provide a default icon if undefined
       };
       return acc;
     }, {} as ChartConfig);
@@ -50,13 +51,13 @@ export function SpendingBreakdownChart({ data }: SpendingBreakdownChartProps) {
   }, [data])
 
   return (
-    <Card className="flex flex-col shadow-lg min-h-[450px]"> {/* Increased min-height for legend */}
+    <Card className="flex flex-col shadow-lg min-h-[450px] h-full">
       <CardHeader className="items-center pb-0">
         <CardTitle className="flex items-center text-lg">
           <PieChartIcon className="h-5 w-5 mr-2 text-primary" />
           Spending Breakdown
         </CardTitle>
-        <CardDescription>By Category - Current Data</CardDescription>
+        <CardDescription>By Category</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 flex items-center justify-center pb-0">
         {(!data || data.length === 0) ? (
@@ -68,7 +69,7 @@ export function SpendingBreakdownChart({ data }: SpendingBreakdownChartProps) {
         ) : (
           <ChartContainer
             config={chartConfig}
-            className="mx-auto aspect-square max-h-[300px]"
+            className="mx-auto aspect-square max-h-[300px] w-full h-full" // Ensure ChartContainer takes full height
           >
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -79,16 +80,27 @@ export function SpendingBreakdownChart({ data }: SpendingBreakdownChartProps) {
                 <Pie
                   data={data}
                   dataKey="amount"
-                  nameKey="category"
+                  nameKey="category" // Used by ChartTooltipContent and Legend
                   innerRadius={60}
-                  strokeWidth={5}
+                  strokeWidth={2} // Reduced stroke width for potentially more segments
                   labelLine={false}
+                  // label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, category }) => {
+                  //   const RADIAN = Math.PI / 180;
+                  //   const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                  //   const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                  //   const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                  //   return (
+                  //     <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" className="text-xs">
+                  //       {`${(percent * 100).toFixed(0)}%`}
+                  //     </text>
+                  //   );
+                  // }}
                 >
                   {data.map((entry) => (
                     <Cell key={`cell-${entry.category}`} fill={entry.fill} name={entry.category} />
                   ))}
                 </Pie>
-                 <Legend content={<ChartLegendContent />} />
+                 <Legend content={<ChartLegendContent nameKey="category"/>} />
               </PieChart>
             </ResponsiveContainer>
           </ChartContainer>

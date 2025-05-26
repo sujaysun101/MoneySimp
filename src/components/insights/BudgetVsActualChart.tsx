@@ -1,3 +1,4 @@
+
 // src/components/insights/BudgetVsActualChart.tsx
 "use client"
 
@@ -16,7 +17,7 @@ import {
 import {
   ChartConfig,
   ChartContainer,
-  ChartTooltipContent,
+  // ChartTooltipContent, // Using custom tooltip
   ChartLegend,
   ChartLegendContent,
 } from "@/components/ui/chart"
@@ -42,26 +43,15 @@ export function BudgetVsActualChart({ data }: BudgetVsActualChartProps) {
     const config: ChartConfig = {
         budgetAmount: {
             label: "Budgeted",
-            color: "hsl(var(--chart-2))", // A neutral or planned color
+            color: "hsl(var(--chart-2))", 
             icon: Target,
         },
         actualAmount: {
             label: "Actual Spent",
-            color: "hsl(var(--chart-1))", // A color for actual spending
-            icon: TrendingUp, // or TrendingDown if actual < budget
+            color: "hsl(var(--chart-1))", 
+            icon: TrendingUp, 
         },
     };
-
-    // Add category-specific icons if needed, though Recharts may not directly use them in legend items.
-    // data.forEach(item => {
-    //   if (item.categoryIcon) {
-    //     config[item.categoryName] = { // This is more for if categories were series, not X-axis labels
-    //       label: item.categoryName,
-    //       icon: item.categoryIcon,
-    //       color: item.fillActual, // Or a default color
-    //     };
-    //   }
-    // });
     return config;
   }, []);
 
@@ -72,23 +62,28 @@ export function BudgetVsActualChart({ data }: BudgetVsActualChartProps) {
       const CategoryIcon = categoryData?.categoryIcon || Info;
       
       return (
-        <div className="p-2 bg-background border border-border rounded-md shadow-lg">
-          <div className="flex items-center mb-1">
+        <div className="p-2 bg-background border border-border rounded-md shadow-lg text-sm">
+          <div className="flex items-center mb-2">
             <CategoryIcon className="h-4 w-4 mr-2 text-muted-foreground" />
             <p className="font-semibold text-foreground">{label}</p>
           </div>
           {payload.map((entry: any) => (
-            <p key={entry.name} style={{ color: entry.color }} className="text-sm">
-              {`${entry.name === 'budgetAmount' ? 'Budgeted' : 'Actual Spent'}: $${entry.value.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`}
-            </p>
+            <div key={entry.name} className="flex justify-between items-center">
+                <span style={{ color: entry.color }} className="capitalize">
+                {entry.name === 'budgetAmount' ? 'Budget:' : 'Spent:'}
+                </span>
+                <span style={{ color: entry.color }} className="font-medium ml-2">
+                {`$${entry.value.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`}
+                </span>
+            </div>
           ))}
            {categoryData && categoryData.budgetAmount > 0 && (
-            <p className={`text-xs mt-1 ${categoryData.actualAmount > categoryData.budgetAmount ? 'text-destructive' : 'text-green-600'}`}>
+            <div className={`mt-2 pt-1 border-t border-border text-xs ${categoryData.actualAmount > categoryData.budgetAmount ? 'text-destructive' : 'text-green-600'}`}>
               {categoryData.actualAmount > categoryData.budgetAmount 
                 ? `Over budget by $${(categoryData.actualAmount - categoryData.budgetAmount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
                 : `Under budget by $${(categoryData.budgetAmount - categoryData.actualAmount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
               }
-            </p>
+            </div>
           )}
         </div>
       );
@@ -98,15 +93,15 @@ export function BudgetVsActualChart({ data }: BudgetVsActualChartProps) {
 
 
   return (
-    <Card className="shadow-lg min-h-[450px]">
+    <Card className="shadow-lg min-h-[450px] h-full flex flex-col">
       <CardHeader>
         <CardTitle className="flex items-center text-lg">
           <Target className="h-5 w-5 mr-2 text-primary" />
-          Budget vs. Actual Spending (Current Month)
+          Budget vs. Actual Spending
         </CardTitle>
-        <CardDescription>Comparison of budgeted amounts to actual spending for the current month.</CardDescription>
+        <CardDescription>Current month comparison.</CardDescription>
       </CardHeader>
-      <CardContent className="flex-1 flex items-center justify-center h-[300px] w-full">
+      <CardContent className="flex-1 flex items-center justify-center h-full w-full">
         {(!data || data.length === 0) ? (
           <div className="flex flex-col items-center text-center text-muted-foreground">
             <Info className="h-10 w-10 mb-3" />
@@ -125,17 +120,18 @@ export function BudgetVsActualChart({ data }: BudgetVsActualChartProps) {
                   axisLine={false}
                   angle={-35}
                   textAnchor="end"
-                  height={60} // Adjust height to accommodate rotated labels
-                  interval={0} // Show all labels
+                  height={60} 
+                  interval={0} 
                   tick={({ x, y, payload }) => {
                     const category = CATEGORIES.find(cat => cat.name === payload.value);
                     const Icon = category?.icon || Info;
                     return (
                       <g transform={`translate(${x},${y})`}>
-                        <text x={0} y={0} dy={16} textAnchor="end" fill="hsl(var(--muted-foreground))" transform="rotate(-35)">
+                        <text x={0} y={0} dy={16} textAnchor="end" fill="hsl(var(--muted-foreground))" transform="rotate(-35)" className="text-xs">
                           {payload.value}
                         </text>
-                        <Icon x={-5} y={-22} className="h-4 w-4 text-muted-foreground" transform="rotate(-35)" />
+                        {/* Icon rendering can be tricky with rotation, adjust as needed or simplify */}
+                        {/* <Icon x={-15} y={-5} className="h-3 w-3 text-muted-foreground" />  */}
                       </g>
                     );
                   }}
@@ -144,19 +140,19 @@ export function BudgetVsActualChart({ data }: BudgetVsActualChartProps) {
                   tickFormatter={(value) => `$${value.toLocaleString('en-US', {})}`}
                   tickLine={false}
                   axisLine={false}
-                  tickMargin={10}
-                  width={80} 
+                  tickMargin={5}
+                  width={70} 
                  />
                 <Tooltip 
                     content={<CustomTooltip />}
                     cursor={{ fill: 'hsl(var(--muted)/0.3)', radius: 4 }} 
                 />
-                <Legend content={<ChartLegendContent nameKey="name" />} verticalAlign="top" />
-                <Bar dataKey="budgetAmount" name="Budgeted" fill="var(--color-budgetAmount)" radius={[4, 4, 0, 0]} barSize={20}>
-                   <LabelList dataKey="budgetAmount" position="top" formatter={(value: number) => `$${value.toLocaleString()}`} className="text-xs fill-muted-foreground" />
+                <Legend content={<ChartLegendContent nameKey="name" />} verticalAlign="top" align="center" wrapperStyle={{paddingBottom: '10px'}}/>
+                <Bar dataKey="budgetAmount" name="Budgeted" fill="var(--color-budgetAmount)" radius={[4, 4, 0, 0]} barSize={15}>
+                   <LabelList dataKey="budgetAmount" position="top" formatter={(value: number) => value > 0 ? `$${value.toLocaleString(undefined, {maximumFractionDigits:0})}`: ''} className="text-xs fill-muted-foreground" />
                 </Bar>
-                <Bar dataKey="actualAmount" name="Actual Spent" fill="var(--color-actualAmount)" radius={[4, 4, 0, 0]} barSize={20}>
-                   <LabelList dataKey="actualAmount" position="top" formatter={(value: number) => `$${value.toLocaleString()}`} className="text-xs fill-muted-foreground" />
+                <Bar dataKey="actualAmount" name="Actual Spent" fill="var(--color-actualAmount)" radius={[4, 4, 0, 0]} barSize={15}>
+                   <LabelList dataKey="actualAmount" position="top" formatter={(value: number) => value > 0 ? `$${value.toLocaleString(undefined, {maximumFractionDigits:0})}`: ''} className="text-xs fill-muted-foreground" />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -165,7 +161,7 @@ export function BudgetVsActualChart({ data }: BudgetVsActualChartProps) {
       </CardContent>
       <CardFooter className="text-sm text-muted-foreground">
         {data && data.length > 0 ? (
-          <p>Compares budgeted vs. actual spending for categories with set budgets for the current month.</p>
+          <p>Compares budgeted vs. actual spending for the current month.</p>
         ) : (
           <p>Set budgets and add expenses to compare your spending.</p>
         )}
