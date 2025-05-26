@@ -65,7 +65,11 @@ export default function RootLayout({
     // Show loading state only for protected routes while auth is being checked
     return (
       <html lang="en" suppressHydrationWarning>
-        <body className={`${inter.variable} font-sans antialiased`}>
+        <head>
+            <title>{APP_NAME} - Loading...</title>
+            <meta name="description" content="Loading your financial dashboard." />
+        </head>
+        <body className={`${inter.variable} font-sans antialiased`} suppressHydrationWarning={true}>
           <div className="flex justify-center items-center min-h-screen">Loading...</div>
           <Toaster />
         </body>
@@ -81,7 +85,7 @@ export default function RootLayout({
             <title>{APP_NAME}</title>
             <meta name="description" content="Your personified finance tracker!" />
         </head>
-        <body className={`${inter.variable} font-sans antialiased`}>
+        <body className={`${inter.variable} font-sans antialiased`} suppressHydrationWarning={true}>
           {children}
           <Toaster />
         </body>
@@ -96,7 +100,7 @@ export default function RootLayout({
             <title>{APP_NAME} - App</title>
             <meta name="description" content="Manage your finances." />
         </head>
-      <body className={`${inter.variable} font-sans antialiased`}>
+      <body className={`${inter.variable} font-sans antialiased`} suppressHydrationWarning={true}>
         <SidebarProvider defaultOpen={true} collapsible="icon">
           <Sidebar side="left" variant="sidebar" className="border-r">
             <SidebarNav />
