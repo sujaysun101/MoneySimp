@@ -2,7 +2,7 @@
 "use client"
 
 import * as React from "react"
-import { PieChart as PieChartIcon, Info, type LucideIcon, MoreVertical, Download, Printer } from "lucide-react" 
+import { PieChart as PieChartIcon, Info, type LucideIcon, MoreVertical, Download, Printer, Cell as RechartsCell } from "lucide-react" 
 import { Pie, PieChart, ResponsiveContainer, Cell, Tooltip, Legend } from "recharts"
 import html2canvas from 'html2canvas';
 import { useToast } from "@/hooks/use-toast";
@@ -38,8 +38,8 @@ export interface SpendingDataPoint {
 
 interface SpendingBreakdownChartProps {
   data: SpendingDataPoint[];
-  title?: string; // Optional title prop
-  description?: string; // Optional description prop
+  title?: string; 
+  description?: string; 
 }
 
 export function SpendingBreakdownChart({ 
@@ -49,7 +49,7 @@ export function SpendingBreakdownChart({
 }: SpendingBreakdownChartProps) {
   const chartRef = React.useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-  const titleString = title; // Use prop title for consistency
+  const titleString = title; 
 
   const chartConfig = React.useMemo(() => {
     if (!data || data.length === 0) return {} as ChartConfig;
@@ -101,51 +101,64 @@ export function SpendingBreakdownChart({
   const handlePrintChart = () => {
     if (!chartRef.current) {
       toast({ variant: "destructive", title: "Print Failed", description: "Chart element not found." });
+      console.error("handlePrintChart: chartRef.current is null or undefined at the beginning.");
       return;
     }
-    console.log("handlePrintChart: Chart element found", chartRef.current);
 
     const printElement = chartRef.current;
-    const originalId = printElement.id; 
-    const dropdownMenu = printElement.querySelector('.chart-actions-menu'); 
+    let originalId: string | undefined = undefined;
+    let dropdownMenu: Element | null = null;
 
-    if (dropdownMenu) {
-      console.log("handlePrintChart: Dropdown menu found");
-    } else {
-      console.warn("handlePrintChart: Dropdown menu NOT found. Printing may include it.");
-    }
-    
-    printElement.id = 'print-target';
-    if(dropdownMenu) dropdownMenu.classList.add('no-print');
-    console.log("handlePrintChart: Set ID to 'print-target' and added 'no-print' class.");
-
-    window.onafterprint = () => {
-      console.log("handlePrintChart: window.onafterprint called.");
-      if (originalId) {
-        printElement.id = originalId;
-      } else {
-        printElement.removeAttribute('id'); 
-      }
-      if(dropdownMenu) dropdownMenu.classList.remove('no-print');
-      window.onafterprint = null; 
-      console.log("handlePrintChart: Cleaned up after print.");
-    };
-
-    console.log("handlePrintChart: Calling window.print()...");
     try {
-      window.print(); 
-      console.log("handlePrintChart: window.print() called successfully (dialog should be open or closed).");
-    } catch (e) {
-      console.error("handlePrintChart: Error calling window.print()", e);
-      toast({ variant: "destructive", title: "Print Error", description: "Could not initiate printing." });
-      // Perform cleanup here as well in case onafterprint doesn't fire
-      if (originalId) {
-        printElement.id = originalId;
+      console.log("handlePrintChart: Starting print setup. Element:", printElement);
+      originalId = printElement.id; 
+      dropdownMenu = printElement.querySelector('.chart-actions-menu');
+
+      printElement.id = 'print-target'; 
+      if (dropdownMenu) {
+        dropdownMenu.classList.add('no-print'); 
+        console.log("handlePrintChart: Added 'no-print' to dropdown menu.");
       } else {
-        printElement.removeAttribute('id');
+        console.warn("handlePrintChart: Dropdown menu '.chart-actions-menu' not found inside printElement.");
       }
-      if(dropdownMenu) dropdownMenu.classList.remove('no-print');
-      window.onafterprint = null;
+
+      window.onafterprint = () => {
+        console.log("handlePrintChart: 'onafterprint' event triggered.");
+        if (printElement) { 
+          if (originalId) {
+            printElement.id = originalId;
+          } else {
+            printElement.removeAttribute('id');
+          }
+          if (dropdownMenu) {
+            dropdownMenu.classList.remove('no-print');
+          }
+          console.log("handlePrintChart: Cleanup finished.");
+        } else {
+          console.warn("handlePrintChart: 'onafterprint' - printElement is no longer valid.");
+        }
+        window.onafterprint = null; 
+      };
+
+      console.log("handlePrintChart: Calling window.print()...");
+      window.print(); 
+      console.log("handlePrintChart: window.print() called successfully (dialog should be open or closed by now).");
+
+    } catch (error) {
+      console.error("handlePrintChart: Error during print setup or call:", error);
+      toast({ variant: "destructive", title: "Print Error", description: "An error occurred while preparing to print." });
+      
+      if (printElement) {
+        if (originalId !== undefined) { // Check if originalId was actually stored
+            printElement.id = originalId;
+        } else {
+            printElement.removeAttribute('id');
+        }
+        if (dropdownMenu) {
+            dropdownMenu.classList.remove('no-print');
+        }
+      }
+      window.onafterprint = null; 
     }
   };
   
