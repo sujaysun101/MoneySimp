@@ -1,10 +1,11 @@
-
 // src/components/insights/AverageCategorySpendingChart.tsx
 "use client"
 
 import * as React from "react"
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis, Tooltip, LabelList, Cell } from "recharts" // Added Cell
-import { BarChartHorizontalBig, Info, type LucideIcon } from "lucide-react" 
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis, Tooltip, LabelList, Cell } from "recharts"
+import { BarChartHorizontalBig, Info, type LucideIcon, MoreVertical, Download, Printer } from "lucide-react" 
+import html2canvas from 'html2canvas';
+import { useToast } from "@/hooks/use-toast";
 
 import {
   Card,
@@ -17,9 +18,14 @@ import {
 import {
   ChartConfig,
   ChartContainer,
-  // ChartTooltipContent, // Using custom tooltip
 } from "@/components/ui/chart"
-import { CATEGORIES } from "@/lib/constants"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Button } from "@/components/ui/button"
 
 export interface AverageSpendingDataPoint {
   categoryName: string;
@@ -33,13 +39,17 @@ interface AverageCategorySpendingChartProps {
 }
 
 export function AverageCategorySpendingChart({ data }: AverageCategorySpendingChartProps) {
+  const chartRef = React.useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+  const title = "Average Monthly Spending";
+
   const chartConfig = React.useMemo(() => {
     if (!data || data.length === 0) return {} as ChartConfig;
     return data.reduce((acc, item) => {
       acc[item.categoryName] = { 
         label: item.categoryName,
         color: item.fill,
-        icon: item.categoryIcon || BarChartHorizontalBig, // Default icon
+        icon: item.categoryIcon || BarChartHorizontalBig,
       };
       return acc;
     }, {} as ChartConfig);
@@ -64,18 +74,78 @@ export function AverageCategorySpendingChart({ data }: AverageCategorySpendingCh
     return null;
   };
 
+  const handleDownloadPNG = () => {
+    if (chartRef.current) {
+      toast({ title: "Preparing Download...", description: "Your chart image is being generated." });
+      html2canvas(chartRef.current, { backgroundColor: "hsl(var(--card))", scale: 2, useCORS: true }).then(canvas => {
+        const image = canvas.toDataURL("image/png");
+        const link = document.createElement("a");
+        link.href = image;
+        link.download = `${title.toLowerCase().replace(/\s+/g, '_')}_chart.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast({ title: "Download Started", description: "Chart image download has started." });
+      }).catch(err => {
+        console.error("Error generating chart image:", err);
+        toast({ variant: "destructive", title: "Download Failed", description: "Could not generate chart image." });
+      });
+    }
+  };
+
+  const handlePrintChart = () => {
+    if (chartRef.current) {
+      const printElement = chartRef.current;
+      const originalId = printElement.id;
+      const dropdownMenu = printElement.querySelector('.chart-actions-menu');
+      
+      printElement.id = 'print-target';
+      if(dropdownMenu) dropdownMenu.classList.add('no-print');
+
+      window.onafterprint = () => {
+        printElement.id = originalId;
+        if(dropdownMenu) dropdownMenu.classList.remove('no-print');
+        window.onafterprint = null;
+      };
+      window.print();
+    }
+  };
+
+  const hasData = data && data.length > 0;
 
   return (
-    <Card className="shadow-lg min-h-[450px] h-full flex flex-col">
+    <Card className="shadow-lg min-h-[450px] h-full flex flex-col" ref={chartRef}>
       <CardHeader>
-        <CardTitle className="flex items-center text-lg">
-          <BarChartHorizontalBig className="h-5 w-5 mr-2 text-primary" />
-          Average Monthly Spending
-        </CardTitle>
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center">
+            <BarChartHorizontalBig className="h-5 w-5 mr-2 text-primary" />
+            <CardTitle className="text-lg">{title}</CardTitle>
+          </div>
+          {hasData && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="chart-actions-menu h-8 w-8">
+                  <MoreVertical className="h-4 w-4" />
+                  <span className="sr-only">Chart actions</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={handleDownloadPNG}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Download as PNG
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={handlePrintChart}>
+                  <Printer className="mr-2 h-4 w-4" />
+                  Print Chart
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
         <CardDescription>Average spending per category across all recorded months.</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 flex items-center justify-center h-full w-full">
-        {(!data || data.length === 0) ? (
+        {!hasData ? (
           <div className="flex flex-col items-center text-center text-muted-foreground">
             <Info className="h-10 w-10 mb-3" />
             <p>No spending data available to calculate averages.</p>
@@ -93,13 +163,13 @@ export function AverageCategorySpendingChart({ data }: AverageCategorySpendingCh
                   tickLine={false}
                   axisLine={false}
                   tickMargin={5}
-                  width={110} // Adjusted width for icon + text
+                  width={110} 
                   tick={({ x, y, payload }) => {
                     const categoryInfo = data.find(d => d.categoryName === payload.value);
                     const IconComponent = categoryInfo?.categoryIcon || Info;
                     return (
                       <g transform={`translate(${x},${y})`}>
-                        <foreignObject x={-105} y={-10} width="100" height="20"> {/* Adjusted x for space */}
+                        <foreignObject x={-105} y={-10} width="100" height="20"> 
                           <div className="flex items-center justify-end w-full text-xs text-muted-foreground truncate" title={payload.value}>
                             <span className="truncate mr-1.5">{payload.value}</span>
                             <IconComponent className="h-3.5 w-3.5 shrink-0" style={{color: categoryInfo?.fill}} />
@@ -121,7 +191,7 @@ export function AverageCategorySpendingChart({ data }: AverageCategorySpendingCh
                       dataKey="averageSpending" 
                       position="right" 
                       formatter={(value: number) => value > 0 ?`$${value.toLocaleString(undefined, {minimumFractionDigits:0, maximumFractionDigits: 0})}` : ''} 
-                      className="text-xs fill-foreground" // Changed to foreground for better visibility
+                      className="text-xs fill-foreground" 
                     />
                 </Bar>
               </BarChart>
@@ -130,7 +200,7 @@ export function AverageCategorySpendingChart({ data }: AverageCategorySpendingCh
         )}
       </CardContent>
       <CardFooter className="text-sm text-muted-foreground">
-        {data && data.length > 0 ? (
+        {hasData ? (
           <p>Shows average monthly spending based on your expense history.</p>
         ) : (
           <p>Track expenses over several months to see average spending patterns.</p>

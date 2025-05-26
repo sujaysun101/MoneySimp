@@ -93,3 +93,40 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+@media print {
+  body * {
+    visibility: hidden;
+    margin: 0;
+    padding: 0;
+  }
+  #print-target, #print-target * {
+    visibility: visible;
+  }
+  #print-target {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex; /* Use flex to help center the chart content if it's smaller */
+    justify-content: center;
+    align-items: center;
+    padding: 20px; /* Add some padding for the print view */
+    box-sizing: border-box;
+    background-color: white !important; /* Ensure background is white for print */
+  }
+  /* Ensure SVG from Recharts scales and is visible */
+  #print-target .recharts-responsive-container,
+  #print-target .recharts-wrapper,
+  #print-target svg.recharts-surface {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 90vw; /* Adjust as needed */
+    max-height: 90vh; /* Adjust as needed */
+    overflow: visible !important;
+  }
+  .no-print { /* Class to hide elements like menus during print */
+    display: none !important;
+  }
+}

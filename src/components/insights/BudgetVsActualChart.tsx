@@ -1,10 +1,11 @@
-
 // src/components/insights/BudgetVsActualChart.tsx
 "use client"
 
 import * as React from "react"
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, LabelList } from "recharts"
-import { Target, TrendingDown, TrendingUp, Info, type LucideIcon } from "lucide-react" 
+import { Target, TrendingUp, Info, type LucideIcon, MoreVertical, Download, Printer } from "lucide-react" 
+import html2canvas from 'html2canvas';
+import { useToast } from "@/hooks/use-toast";
 
 import {
   Card,
@@ -17,11 +18,18 @@ import {
 import {
   ChartConfig,
   ChartContainer,
-  // ChartTooltipContent, // Using custom tooltip
   ChartLegend,
   ChartLegendContent,
 } from "@/components/ui/chart"
 import { CATEGORIES } from "@/lib/constants"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Button } from "@/components/ui/button"
+
 
 export interface BudgetActualDataPoint {
   categoryName: string;
@@ -37,6 +45,10 @@ interface BudgetVsActualChartProps {
 }
 
 export function BudgetVsActualChart({ data }: BudgetVsActualChartProps) {
+  const chartRef = React.useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+  const title = "Budget vs. Actual Spending";
+
   const chartConfig = React.useMemo(() => {
     if (!data || data.length === 0) return {} as ChartConfig;
     
@@ -91,18 +103,78 @@ export function BudgetVsActualChart({ data }: BudgetVsActualChartProps) {
     return null;
   };
 
+  const handleDownloadPNG = () => {
+    if (chartRef.current) {
+      toast({ title: "Preparing Download...", description: "Your chart image is being generated." });
+      html2canvas(chartRef.current, { backgroundColor: "hsl(var(--card))", scale: 2, useCORS: true }).then(canvas => {
+        const image = canvas.toDataURL("image/png");
+        const link = document.createElement("a");
+        link.href = image;
+        link.download = `${title.toLowerCase().replace(/\s+/g, '_')}_chart.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast({ title: "Download Started", description: "Chart image download has started." });
+      }).catch(err => {
+        console.error("Error generating chart image:", err);
+        toast({ variant: "destructive", title: "Download Failed", description: "Could not generate chart image." });
+      });
+    }
+  };
+
+  const handlePrintChart = () => {
+    if (chartRef.current) {
+      const printElement = chartRef.current;
+      const originalId = printElement.id;
+      const dropdownMenu = printElement.querySelector('.chart-actions-menu');
+      
+      printElement.id = 'print-target';
+      if(dropdownMenu) dropdownMenu.classList.add('no-print');
+
+      window.onafterprint = () => {
+        printElement.id = originalId;
+        if(dropdownMenu) dropdownMenu.classList.remove('no-print');
+        window.onafterprint = null;
+      };
+      window.print();
+    }
+  };
+
+  const hasData = data && data.length > 0;
 
   return (
-    <Card className="shadow-lg min-h-[450px] h-full flex flex-col">
+    <Card className="shadow-lg min-h-[450px] h-full flex flex-col" ref={chartRef}>
       <CardHeader>
-        <CardTitle className="flex items-center text-lg">
-          <Target className="h-5 w-5 mr-2 text-primary" />
-          Budget vs. Actual Spending
-        </CardTitle>
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center">
+            <Target className="h-5 w-5 mr-2 text-primary" />
+            <CardTitle className="text-lg">{title}</CardTitle>
+          </div>
+          {hasData && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="chart-actions-menu h-8 w-8">
+                  <MoreVertical className="h-4 w-4" />
+                  <span className="sr-only">Chart actions</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={handleDownloadPNG}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Download as PNG
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={handlePrintChart}>
+                  <Printer className="mr-2 h-4 w-4" />
+                  Print Chart
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
         <CardDescription>Current month comparison.</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 flex items-center justify-center h-full w-full">
-        {(!data || data.length === 0) ? (
+        {!hasData ? (
           <div className="flex flex-col items-center text-center text-muted-foreground">
             <Info className="h-10 w-10 mb-3" />
             <p>No budget data available or no spending this month.</p>
@@ -130,8 +202,6 @@ export function BudgetVsActualChart({ data }: BudgetVsActualChartProps) {
                         <text x={0} y={0} dy={16} textAnchor="end" fill="hsl(var(--muted-foreground))" transform="rotate(-35)" className="text-xs">
                           {payload.value}
                         </text>
-                        {/* Icon rendering can be tricky with rotation, adjust as needed or simplify */}
-                        {/* <Icon x={-15} y={-5} className="h-3 w-3 text-muted-foreground" />  */}
                       </g>
                     );
                   }}
@@ -160,7 +230,7 @@ export function BudgetVsActualChart({ data }: BudgetVsActualChartProps) {
         )}
       </CardContent>
       <CardFooter className="text-sm text-muted-foreground">
-        {data && data.length > 0 ? (
+        {hasData ? (
           <p>Compares budgeted vs. actual spending for the current month.</p>
         ) : (
           <p>Set budgets and add expenses to compare your spending.</p>
