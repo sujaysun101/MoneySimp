@@ -1,3 +1,4 @@
+
 // src/app/expenses/page.tsx
 "use client"; 
 
@@ -61,6 +62,8 @@ export default function ExpensesPage() {
     const newExpense: Expense = {
       ...expenseData,
       id: uuidv4(),
+      // Ensure date is a Date object
+      date: expenseData.date instanceof Date ? expenseData.date : new Date(expenseData.date),
     };
     setExpenses(prevExpenses => [newExpense, ...prevExpenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     setExpenseListKey(prevKey => prevKey + 1); // Increment key to re-render list
@@ -111,10 +114,10 @@ export default function ExpensesPage() {
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle>Scan a Bill</CardTitle>
-              <CardDescription>Upload an image of your bill to automatically extract information. (OCR functionality is conceptual)</CardDescription>
+              <CardDescription>Upload an image or take a photo of your bill to automatically extract information.</CardDescription>
             </CardHeader>
             <CardContent>
-              <BillUploadForm />
+              <BillUploadForm onAddExpense={handleAddExpense} />
             </CardContent>
           </Card>
         </TabsContent>
