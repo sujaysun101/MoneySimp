@@ -1,4 +1,3 @@
-
 // src/components/layout/SidebarNav.tsx
 "use client";
 import Link from 'next/link';
@@ -15,8 +14,8 @@ import React, { useState, useEffect } from 'react';
 import { useSidebar } from '@/components/ui/sidebar'; 
 import { Button } from '../ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { auth } from '@/lib/firebase'; // Import Firebase auth
-import { onAuthStateChanged, signOut } from 'firebase/auth'; // Import onAuthStateChanged and signOut
+import { auth } from '@/lib/firebase'; 
+import { onAuthStateChanged, signOut } from 'firebase/auth'; 
 
 export function SidebarNav() {
   const pathname = usePathname();
@@ -29,7 +28,7 @@ export function SidebarNav() {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setIsAuthenticated(!!user);
     });
-    return () => unsubscribe(); // Cleanup subscription
+    return () => unsubscribe(); 
   }, []);
 
   const handleNavItemClick = () => {
@@ -72,7 +71,7 @@ export function SidebarNav() {
         <SidebarMenu>
           {currentNavItems.map((item) => (
             <SidebarMenuItem key={item.label}>
-              {item.isButton ? (
+              {item.isButton && !item.isExternal ? ( // Client-side action button
                 <SidebarMenuButton
                   variant="default"
                   size="default"
@@ -86,10 +85,23 @@ export function SidebarNav() {
                   <item.icon className="h-5 w-5 text-sidebar-foreground/70 group-hover/menu-button:text-sidebar-accent-foreground" />
                   <span className="truncate">{item.label}</span>
                 </SidebarMenuButton>
-              ) : (
+              ) : item.isExternal ? ( // External link
+                <SidebarMenuButton
+                  asChild
+                  variant="default"
+                  size="default"
+                  className="justify-start w-full hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  tooltip={item.label}
+                >
+                  <a href={item.href} target="_blank" rel="noopener noreferrer" onClick={handleNavItemClick}>
+                    <item.icon className="h-5 w-5 text-sidebar-foreground/70 group-hover/menu-button:text-sidebar-accent-foreground" />
+                    <span className="truncate">{item.label}</span>
+                  </a>
+                </SidebarMenuButton>
+              ) : ( // Internal Next.js Link
                 <Link href={item.href} passHref legacyBehavior>
                   <SidebarMenuButton
-                    asChild // Ensure SidebarMenuButton acts as a Slot
+                    asChild 
                     variant="default"
                     size="default"
                     className={cn(
@@ -100,7 +112,6 @@ export function SidebarNav() {
                     )}
                     tooltip={item.label}
                     isActive={isActive(item)}
-                    // onClick on <a> tag handles mobile close, Link handles navigation
                   >
                     <a onClick={handleNavItemClick}>
                       <item.icon className={cn("h-5 w-5", isActive(item) ? "text-primary" : "text-sidebar-foreground/70 group-hover/menu-button:text-sidebar-accent-foreground")} />

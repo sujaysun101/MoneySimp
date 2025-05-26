@@ -9,29 +9,36 @@ import { Mail, TrendingUp, DollarSign, BarChart3 } from "lucide-react";
 import Image from 'next/image';
 import Link from "next/link";
 import React from 'react'; // Import React for FormEvent type
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export default function LandingPage() {
-  const handleBookDemoClick = () => {
-    alert('Book a Demo clicked!');
-  };
-
   const handleWaitlistSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    // Here you would typically send the email to your backend or a service
     alert('Waitlist form submitted!');
+    // Optionally reset the form: (e.target as HTMLFormElement).reset();
   };
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen bg-background">
       <header className="container mx-auto py-6 flex justify-between items-center">
-        <div className="flex items-center gap-2">
+        <Link href="/" passHref className="flex items-center gap-2">
           <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-piggy-bank"><path d="M10 15.5V14a2 2 0 1 0-4 0v1.5"/><path d="M8 15.5v4.5H6a2 2 0 0 1-2-2V12a2 2 0 0 1 2-2h2.4a2 2 0 0 1 1.6.8l2.1 2.9c.3.4.9.6 1.4.6H16a2 2 0 0 0 2-2V9a2 2 0 1 0-4 0v1.5a2 2 0 1 1-4 0V9a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2.5c0 .8.4 1.5.9 1.9L5 15"/><path d="M2 9v1c0 1.1.9 2 2 2h1"/></svg>
           <h1 className="text-2xl font-bold text-primary">{APP_NAME}</h1>
-        </div>
+        </Link>
         <nav className="space-x-4">
           <Link href="/login" passHref>
             <Button variant="outline">Login</Button>
           </Link>
-          <Button onClick={handleBookDemoClick}>Book A Demo</Button>
+          <a
+            href="https://calendly.com/sujay9sundar/30min"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(buttonVariants({ variant: "default" }))}
+          >
+            Book A Demo
+          </a>
         </nav>
       </header>
 

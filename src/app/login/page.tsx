@@ -1,8 +1,7 @@
-
 // src/app/login/page.tsx
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -30,6 +29,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { cn } from "@/lib/utils";
 
 // Placeholder SVG icons
 const GoogleIcon = () => (
@@ -132,15 +132,12 @@ export default function LoginPage() {
       toast({ title: "Signup Failed", description: `${missingFields.join(", ")} is required.`, variant: "destructive" });
       return;
     }
-    if (values.password !== values.confirmPassword) {
-      // This is already handled by Zod schema, but as a fallback
-      toast({ title: "Signup Failed", description: "Passwords do not match.", variant: "destructive" });
-      return;
-    }
+    // Password match is handled by Zod schema resolver now.
+    
     try {
       await createUserWithEmailAndPassword(auth, values.email, values.password);
-      localStorage.removeItem('pennywise-budgets'); 
-      localStorage.removeItem('pennywise-expenses'); 
+      localStorage.removeItem('moneySimp-budgets'); 
+      localStorage.removeItem('moneySimp-expenses'); 
       
       toast({ title: "Signup Successful", description: `Welcome to ${APP_NAME}!` });
       router.push('/dashboard'); 
@@ -150,7 +147,8 @@ export default function LoginPage() {
       if (error.code === 'auth/email-already-in-use') {
         description = "This email is already registered. Please log in instead.";
       } else if (error.code === 'auth/weak-password') {
-        description = "Password is too weak. Ensure it meets all requirements (e.g., at least 6 characters as per Firebase default, plus our specific rules).";
+        // This is generally caught by Zod, but as a Firebase fallback
+        description = "Password is too weak according to Firebase. Ensure it meets requirements.";
       } else if (error.message) {
         description = error.message;
       }
@@ -172,8 +170,8 @@ export default function LoginPage() {
       const additionalInfo = getAdditionalUserInfo(result);
 
       if (additionalInfo?.isNewUser) {
-        localStorage.removeItem('pennywise-budgets'); 
-        localStorage.removeItem('pennywise-expenses');
+        localStorage.removeItem('moneySimp-budgets'); 
+        localStorage.removeItem('moneySimp-expenses');
         toast({ title: `Signed up with ${providerName}`, description: `Welcome to ${APP_NAME}!` });
       } else {
         toast({ title: `Logged in with ${providerName}`, description: "Welcome back!" });
@@ -200,10 +198,6 @@ export default function LoginPage() {
     }
   };
   
-  const handleBookDemoClick = () => {
-    alert('Book a Demo clicked!');
-  };
-
   const SocialLoginButtons = () => (
     <div className="space-y-4">
       <div className="relative my-6">
@@ -236,7 +230,14 @@ export default function LoginPage() {
           <h1 className="text-2xl font-bold text-primary">{APP_NAME}</h1>
         </Link>
         <nav className="space-x-4">
-          <Button onClick={handleBookDemoClick}>Book A Demo</Button>
+           <a
+            href="https://calendly.com/sujay9sundar/30min"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(buttonVariants({ variant: "default" }))}
+          >
+            Book A Demo
+          </a>
         </nav>
       </header>
 

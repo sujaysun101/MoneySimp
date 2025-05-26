@@ -2,7 +2,7 @@ import type { Category } from './types';
 import {
   ShoppingCart, Home, Car, Film, Zap, HeartPulse, Utensils, Shirt, Plane, DollarSign,
   LayoutDashboard, CreditCard, TrendingUp, BarChart3, Briefcase, BookOpen, Gift, LogIn, Send,
-  BarChartHorizontalBig, Target // Added new icons
+  BarChartHorizontalBig, Target
 } from 'lucide-react';
 
 export const APP_NAME = "MoneySimp";
@@ -27,9 +27,10 @@ export interface NavItem {
   href: string;
   label: string;
   icon: React.ElementType;
-  matchSegments?: number; // For dynamic route matching
+  matchSegments?: number; 
   isButton?: boolean;
-  action?: () => void; // For buttons
+  action?: () => void;
+  isExternal?: boolean; // Added for external links
 }
 
 export const AUTH_NAV_ITEMS: NavItem[] = [
@@ -41,7 +42,12 @@ export const AUTH_NAV_ITEMS: NavItem[] = [
 
 export const UNAUTH_NAV_ITEMS: NavItem[] = [
   { href: '/login', label: 'Login', icon: LogIn },
-  { href: '#', label: 'Book A Demo', icon: Send, isButton: true, action: () => alert('Book a Demo clicked!') }, // Placeholder action
+  { 
+    href: 'https://calendly.com/sujay9sundar/30min', 
+    label: 'Book A Demo', 
+    icon: Send, 
+    isExternal: true // Mark as external link
+  },
 ];
 
 // To determine page titles in Header
@@ -49,4 +55,4 @@ export const ALL_NAV_ITEMS = [...AUTH_NAV_ITEMS, ...UNAUTH_NAV_ITEMS];
 
 // Local storage keys
 export const EXPENSES_STORAGE_KEY = 'moneySimp-expenses';
-export const BUDGETS_STORAGE_KEY = 'moneySimp-budgets'; // Standardized key for budgets
+export const BUDGETS_STORAGE_KEY = 'moneySimp-budgets';
