@@ -193,9 +193,9 @@ export default function LoginPage() {
       if (error.code === 'auth/account-exists-with-different-credential') {
         errorMessage = 'An account already exists with the same email address but different sign-in credentials. Try signing in using a provider associated with this email.';
       } else if (error.code === 'auth/popup-closed-by-user') {
-        errorMessage = `The sign-in popup was closed before completing the process. Please try again if you wish to sign in with ${providerName}.`;
+        errorMessage = `The sign-in popup was closed. This might be due to a pop-up blocker or if you closed it manually. Please try again.`;
       } else if (error.code === 'auth/cancelled-popup-request') {
-        errorMessage = `Sign-in cancelled. Multiple popups might be open. Please try again.`;
+        errorMessage = `Sign-in cancelled. This can happen if multiple popups are open or if a pop-up blocker interfered. Please try again.`;
       } else if (error.message) {
         errorMessage = error.message;
       }
@@ -245,6 +245,7 @@ export default function LoginPage() {
             target="_blank"
             rel="noopener noreferrer"
             className={cn(buttonVariants({ variant: "default" }))}
+            onClick={handleBookDemoClick} 
           >
             Book A Demo
           </a>
