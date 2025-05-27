@@ -87,10 +87,16 @@ export default function LoginPage() {
   });
 
   useEffect(() => {
+    // Check if already logged in via Firebase on component mount
     if (auth.currentUser) {
       router.replace('/dashboard');
     }
   }, [router]);
+
+  const handleBookDemoClick = () => {
+    // Logic for booking a demo, e.g., opening Calendly
+    // For now, it's an external link handled by <a> tag
+  };
 
   const handleEmailPasswordLogin = async (values: LoginFormValues) => {
     if (!values.email && !values.password) {
@@ -136,6 +142,7 @@ export default function LoginPage() {
     
     try {
       await createUserWithEmailAndPassword(auth, values.email, values.password);
+      // Clear any potential guest data on new user signup
       localStorage.removeItem('moneySimp-budgets'); 
       localStorage.removeItem('moneySimp-expenses'); 
       
@@ -163,6 +170,8 @@ export default function LoginPage() {
           description: "X/Twitter login setup can be complex and may require additional configuration in your Firebase project and X Developer Portal for full functionality.",
           duration: 7000,
         });
+        // Optionally, you might choose to not proceed further for X if it's known to be problematic without setup.
+        // return; 
     }
     try {
       const result = await signInWithPopup(auth, authProvider);
@@ -170,6 +179,7 @@ export default function LoginPage() {
       const additionalInfo = getAdditionalUserInfo(result);
 
       if (additionalInfo?.isNewUser) {
+        // Clear any potential guest data on new user signup via social
         localStorage.removeItem('moneySimp-budgets'); 
         localStorage.removeItem('moneySimp-expenses');
         toast({ title: `Signed up with ${providerName}`, description: `Welcome to ${APP_NAME}!` });
@@ -183,9 +193,9 @@ export default function LoginPage() {
       if (error.code === 'auth/account-exists-with-different-credential') {
         errorMessage = 'An account already exists with the same email address but different sign-in credentials. Try signing in using a provider associated with this email.';
       } else if (error.code === 'auth/popup-closed-by-user') {
-        errorMessage = `Sign-in popup closed before completion.`;
+        errorMessage = `The sign-in popup was closed before completing the process. Please try again if you wish to sign in with ${providerName}.`;
       } else if (error.code === 'auth/cancelled-popup-request') {
-        errorMessage = `Sign-in cancelled. Multiple popups might be open.`;
+        errorMessage = `Sign-in cancelled. Multiple popups might be open. Please try again.`;
       } else if (error.message) {
         errorMessage = error.message;
       }
