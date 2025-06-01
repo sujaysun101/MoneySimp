@@ -99,30 +99,26 @@ export default function LoginPage() {
   };
 
   const handleEmailPasswordLogin = async (values: LoginFormValues) => {
-    if (!values.email && !values.password) {
-      toast({ title: "Login Failed", description: "Email and password are required.", variant: "destructive" });
-      return;
-    }
-    if (!values.email) {
-      toast({ title: "Login Failed", description: "Email is required.", variant: "destructive" });
-      return;
-    }
-    if (!values.password) {
-      toast({ title: "Login Failed", description: "Password is required.", variant: "destructive" });
-      return;
-    }
+    // Zod validation handles empty fields before this point
     try {
       await signInWithEmailAndPassword(auth, values.email, values.password);
       toast({ title: "Login Successful", description: "Welcome back!" });
       router.push('/dashboard'); 
     } catch (error: any) {
-      console.error("Login failed:", error);
+      console.error("Login failed:", error); // Log the full error for developers
       let description = "An unexpected error occurred. Please try again.";
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email' || error.code === 'auth/invalid-credential') {
-        description = "Invalid credentials. Please check your email and password, or sign up if you don't have an account.";
+
+      if (error.code === 'auth/invalid-credential') {
+        description = "Invalid email or password. Please check your credentials and try again. If you don't have an account, please sign up.";
+      } else if (error.code === 'auth/user-not-found') {
+        description = "No account found with this email. Please sign up or check the email address.";
       } else if (error.code === 'auth/wrong-password') {
          description = "Incorrect password. Please try again.";
-      } else if (error.message) {
+      } else if (error.code === 'auth/invalid-email') { 
+         description = "The email address is badly formatted. Please correct it.";
+      } else if (error.code === 'auth/user-disabled') {
+         description = "This account has been disabled. Please contact support.";
+      } else if (error.message) { // Fallback to Firebase's message if code is not recognized
         description = error.message;
       }
       toast({ title: "Login Failed", description, variant: "destructive" });
@@ -130,16 +126,7 @@ export default function LoginPage() {
   };
 
   const handleEmailPasswordSignup = async (values: SignupFormValues) => {
-     if (!values.email || !values.password || !values.confirmPassword) {
-      let missingFields = [];
-      if (!values.email) missingFields.push("Email");
-      if (!values.password) missingFields.push("Password");
-      if (!values.confirmPassword) missingFields.push("Confirm Password");
-      toast({ title: "Signup Failed", description: `${missingFields.join(", ")} is required.`, variant: "destructive" });
-      return;
-    }
-    // Password match is handled by Zod schema resolver now.
-    
+     // Zod validation handles empty fields and password match before this point
     try {
       await createUserWithEmailAndPassword(auth, values.email, values.password);
       // Clear any potential guest data on new user signup
@@ -154,8 +141,7 @@ export default function LoginPage() {
       if (error.code === 'auth/email-already-in-use') {
         description = "This email is already registered. Please log in instead.";
       } else if (error.code === 'auth/weak-password') {
-        // This is generally caught by Zod, but as a Firebase fallback
-        description = "Password is too weak according to Firebase. Ensure it meets requirements.";
+        description = "Password is too weak. Ensure it meets all requirements.";
       } else if (error.message) {
         description = error.message;
       }
@@ -170,8 +156,6 @@ export default function LoginPage() {
           description: "X/Twitter login setup can be complex and may require additional configuration in your Firebase project and X Developer Portal for full functionality.",
           duration: 7000,
         });
-        // Optionally, you might choose to not proceed further for X if it's known to be problematic without setup.
-        // return; 
     }
     try {
       const result = await signInWithPopup(auth, authProvider);
@@ -179,7 +163,6 @@ export default function LoginPage() {
       const additionalInfo = getAdditionalUserInfo(result);
 
       if (additionalInfo?.isNewUser) {
-        // Clear any potential guest data on new user signup via social
         localStorage.removeItem('moneySimp-budgets'); 
         localStorage.removeItem('moneySimp-expenses');
         toast({ title: `Signed up with ${providerName}`, description: `Welcome to ${APP_NAME}!` });
@@ -193,9 +176,9 @@ export default function LoginPage() {
       if (error.code === 'auth/account-exists-with-different-credential') {
         errorMessage = 'An account already exists with the same email address but different sign-in credentials. Try signing in using a provider associated with this email.';
       } else if (error.code === 'auth/popup-closed-by-user') {
-        errorMessage = `The sign-in popup was closed. This might be due to a pop-up blocker or if you closed it manually. Please try again.`;
+        errorMessage = `Sign-in popup was closed. This could be due to a pop-up blocker or manual closure. Please try again and ensure pop-ups are allowed.`;
       } else if (error.code === 'auth/cancelled-popup-request') {
-        errorMessage = `Sign-in cancelled. This can happen if multiple popups are open or if a pop-up blocker interfered. Please try again.`;
+        errorMessage = `Sign-in cancelled. This can happen if multiple popups are open or if a pop-up blocker interfered. Please try again and ensure pop-ups are allowed.`;
       } else if (error.message) {
         errorMessage = error.message;
       }
@@ -245,7 +228,7 @@ export default function LoginPage() {
             target="_blank"
             rel="noopener noreferrer"
             className={cn(buttonVariants({ variant: "default" }))}
-            onClick={handleBookDemoClick} 
+            
           >
             Book A Demo
           </a>
