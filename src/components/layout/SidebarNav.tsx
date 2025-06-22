@@ -51,7 +51,26 @@ export function SidebarNav() {
     }
   };
 
-  const currentNavItems = isAuthenticated ? AUTH_NAV_ITEMS : UNAUTH_NAV_ITEMS;
+  let currentNavItems = isAuthenticated ? AUTH_NAV_ITEMS : UNAUTH_NAV_ITEMS;
+
+  // Add Settings tab to Insights section if authenticated
+  if (isAuthenticated) {
+    const insightsIndex = currentNavItems.findIndex(item => item.label === 'Insights');
+    if (insightsIndex !== -1) {
+      const settingsExists = currentNavItems.some(item => item.label === 'Settings');
+      if (!settingsExists) {
+        currentNavItems = [
+          ...currentNavItems.slice(0, insightsIndex + 1),
+          {
+            label: 'Settings',
+            href: '/settings',
+            icon: PiggyBank, // Replace with a settings icon if available
+          },
+          ...currentNavItems.slice(insightsIndex + 1),
+        ];
+      }
+    }
+  }
 
   const isActive = (item: NavItem) => {
     if (item.href === '/') return pathname === '/';
@@ -99,24 +118,24 @@ export function SidebarNav() {
                   </a>
                 </SidebarMenuButton>
               ) : ( // Internal Next.js Link
-                <Link href={item.href} passHref legacyBehavior>
+                <Link href={item.href}>
                   <SidebarMenuButton
-                    asChild 
+                    asChild
                     variant="default"
                     size="default"
                     className={cn(
                       "justify-start w-full",
                       isActive(item) ?
-                      "bg-sidebar-accent text-sidebar-accent-foreground font-semibold" :
-                      "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                        "bg-sidebar-accent text-sidebar-accent-foreground font-semibold" :
+                        "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                     )}
                     tooltip={item.label}
                     isActive={isActive(item)}
                   >
-                    <a onClick={handleNavItemClick}>
+                    <span onClick={handleNavItemClick} className="flex items-center">
                       <item.icon className={cn("h-5 w-5", isActive(item) ? "text-primary" : "text-sidebar-foreground/70 group-hover/menu-button:text-sidebar-accent-foreground")} />
                       <span className="truncate">{item.label}</span>
-                    </a>
+                    </span>
                   </SidebarMenuButton>
                 </Link>
               )}

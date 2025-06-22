@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -122,6 +121,18 @@ const SidebarProvider = React.forwardRef<
       window.addEventListener("keydown", handleKeyDown)
       return () => window.removeEventListener("keydown", handleKeyDown)
     }, [toggleSidebar])
+
+    React.useEffect(() => {
+      function handleSidebarToggle() {
+        const sidebarCtx = (window as any).sidebarCtx;
+        if (sidebarCtx) {
+          sidebarCtx.setOpen((prev: boolean) => !prev);
+          sidebarCtx.setOpenMobile((prev: boolean) => !prev);
+        }
+      }
+      window.addEventListener('sidebar-toggle', handleSidebarToggle);
+      return () => window.removeEventListener('sidebar-toggle', handleSidebarToggle);
+    }, []);
 
     const state = open ? "expanded" : "collapsed"
 
@@ -786,4 +797,3 @@ export {
   useSidebar,
 }
 
-    
