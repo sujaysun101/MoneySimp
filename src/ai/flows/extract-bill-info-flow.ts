@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A Genkit flow for extracting expense information from bill images.
@@ -12,6 +11,7 @@
 import {ai} from '@/ai/genkit';
 import {z}  from 'genkit';
 import { CATEGORIES } from '@/lib/constants';
+import Tesseract from 'tesseract.js';
 
 const categoryNames = CATEGORIES.map(c => c.name).join(', ');
 
@@ -48,10 +48,14 @@ export async function extractBillInfo(input: ExtractBillInfoInput): Promise<Extr
 // Internal prompt definition - not exported
 const prompt = ai.definePrompt({
   name: 'extractBillInfoPrompt',
-  input: {schema: ExtractBillInfoInputSchema},
+  input: { schema: ExtractBillInfoInputSchema.extend({ ocrText: z.string().optional() }) },
   output: {schema: ExtractBillInfoOutputSchema},
   prompt: `You are an expert financial assistant specializing in parsing receipts and bills.
-Analyze the provided bill image. Extract all relevant information to create expense records.
+
+Analyze the provided bill image and the OCR text. Extract all relevant information to create expense records.
+
+OCR text of the bill:
+{{ocrText}}
 
 Your goal is to identify:
 1.  The vendor/store name.
@@ -100,9 +104,14 @@ const extractBillInfoFlow = ai.defineFlow(
   },
   async (input) => {
     const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-
-    const {output} = await prompt(input);
-
+    // 1. OCR
+    const ocrText = await extractTextFromImage(input.photoDataUri);
+    // 2. Preprocess
+    const cleanedText = preprocessOcrText(ocrText);
+    // 3. Parse (optional: can be used for debugging or future improvements)
+    const parsed = parseReceiptText(cleanedText);
+    // 4. LLM step: pass OCR text to the prompt
+    const { output } = await prompt({ ...input, ocrText: cleanedText });
     if (!output || !output.expenses || output.expenses.length === 0) {
       return {
         expenses: [{
@@ -114,20 +123,68 @@ const extractBillInfoFlow = ai.defineFlow(
         }]
       };
     }
-    
     const processedExpenses = output.expenses.map(exp => ({
       ...exp,
       date: exp.date || currentDate, // Ensure date is always set
       categoryName: CATEGORIES.find(c => c.name.toLowerCase() === exp.categoryName?.toLowerCase()) ? exp.categoryName : "Other", // Validate category
     }));
-
     return { expenses: processedExpenses };
   }
 );
 
-// For clarity, explicitly export only what's needed externally
-export {
-  type ExtractBillInfoInput,
-  type ExtractedExpenseItem,
-  type ExtractBillInfoOutput
-};
+// 1. OCR Step (Tesseract.js integration)
+async function extractTextFromImage(photoDataUri: string): Promise<string> {
+  try {
+    const result = await Tesseract.recognize(photoDataUri, 'eng', {
+      logger: m => console.log(m), // Optional: remove or replace with your logger
+    });
+    return result.data.text || '';
+  } catch (err) {
+    console.error('OCR extraction failed:', err);
+    return '';
+  }
+}
+
+// 2. Preprocessing (expand abbreviations, clean up text)
+function preprocessOcrText(ocrText: string): string {
+  // Example abbreviation mapping
+  const abbreviations: Record<string, string> = {
+    'CHSE': 'Cheese',
+    'PC': "President's Choice",
+    'MSHRMS': 'Mushrooms',
+    'WHT': 'White',
+    'HNYCRP': 'Honeycrisp',
+    'SNAP PEAS': 'Snap Peas',
+    'GRLC': 'Garlic',
+    'HMS': 'Hummus',
+    'BALDR CHED': 'Balderson Cheddar',
+    // Add more as needed
+  };
+  let cleaned = ocrText;
+  for (const [abbr, full] of Object.entries(abbreviations)) {
+    const regex = new RegExp(abbr, 'gi');
+    cleaned = cleaned.replace(regex, full);
+  }
+  // Additional cleaning: remove extra spaces, join broken lines, etc.
+  cleaned = cleaned.replace(/\s{2,}/g, ' ');
+  return cleaned;
+}
+
+// 3. Parsing (extract vendor, date, and items)
+function parseReceiptText(ocrText: string) {
+  // Simple regex-based extraction (expand as needed)
+  const vendorMatch = ocrText.match(/^[A-Z0-9\s\-&']{3,}/m);
+  const dateMatch = ocrText.match(/\b(\d{4}[\/-]\d{2}[\/-]\d{2}|\d{2}[\/-]\d{2}[\/-]\d{2,4})\b/);
+  // Extract line items: look for lines with a price at the end
+  const itemRegex = /^(.+?)\s+(\d+\.\d{2})$/gm;
+  const items: { description: string; amount: number }[] = [];
+  let match;
+  while ((match = itemRegex.exec(ocrText)) !== null) {
+    items.push({ description: match[1].trim(), amount: parseFloat(match[2]) });
+  }
+  return {
+    vendor: vendorMatch ? vendorMatch[0].trim() : '',
+    date: dateMatch ? dateMatch[0] : '',
+    items,
+  };
+}

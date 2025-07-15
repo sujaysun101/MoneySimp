@@ -5,13 +5,20 @@ import { useRouter } from 'next/navigation';
 import { Select, SelectItem, SelectContent } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { useSettings } from '@/components/SettingsContext';
-import { ALL_LANGUAGES } from '@/components/allLanguages';
 
 const getDefaultTheme = () => {
 	const hour = new Date().getHours();
 	if (hour >= 9 && hour < 16) return 'light';
 	return 'dark';
 };
+
+// Define available languages
+const ALL_LANGUAGES = [
+	{ code: 'en', label: 'English' },
+	{ code: 'es', label: 'Spanish' },
+	{ code: 'fr', label: 'French' },
+	// Add more languages as needed
+];
 
 export default function SettingsPage() {
 	const { settings, updateSetting } = useSettings();
@@ -61,7 +68,7 @@ export default function SettingsPage() {
 				<h2 className="text-lg font-semibold mb-2">Language</h2>
 				<Select value={language} onValueChange={val => updateSetting('language', val)}>
 					<SelectContent>
-						{ALL_LANGUAGES.map((lang) => (
+						{ALL_LANGUAGES.map((lang: { code: string; label: string }) => (
 							<SelectItem key={lang.code} value={lang.code}>
 								{lang.label}
 							</SelectItem>

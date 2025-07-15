@@ -1,6 +1,7 @@
 // src/lib/firebase.ts
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, OAuthProvider, TwitterAuthProvider } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
 
 // --- Firebase Configuration ---
 // IMPORTANT: Hardcoding credentials is NOT recommended for production.
@@ -27,7 +28,7 @@ if (!firebaseConfig.projectId) {
 
 
 // Initialize Firebase
-let app: FirebaseApp;
+let app: FirebaseApp | undefined;
 
 if (!getApps().length) {
   try {
@@ -38,19 +39,19 @@ if (!getApps().length) {
     console.log("[Firebase Init] Firebase app initialized successfully with hardcoded config.");
   } catch (error) {
     console.error("[Firebase Init] Firebase initialization failed with an error (using hardcoded config):", error);
-    // This error is likely if the API key is malformed or truly invalid for the project.
-    // Or if critical config like projectId is missing.
+    app = undefined;
   }
 } else {
   app = getApps()[0];
   console.log("[Firebase Init] Firebase app already initialized.");
 }
 
-// @ts-ignore - app might be undefined if initialization failed, getAuth will then throw an error.
-const auth = getAuth(app); 
+// Only initialize if app is defined
+const auth = app ? getAuth(app) : undefined;
 const googleProvider = new GoogleAuthProvider();
 const microsoftProvider = new OAuthProvider('microsoft.com');
 const twitterProvider = new TwitterAuthProvider();
+const db = app ? getFirestore(app) : undefined;
 
 
-export { app, auth, googleProvider, microsoftProvider, twitterProvider };
+export { app, auth, db, googleProvider, microsoftProvider, twitterProvider };

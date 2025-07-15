@@ -14,7 +14,7 @@ export function Header() {
       if (item.href === '/dashboard' && pathname === '/') return true; // Special case for dashboard at root
       if (item.href === '/') return pathname === '/'; // For exact match on root
       // For nested routes, check if pathname starts with item.href, but only if href is not just '/'
-      return item.href !== '/' && pathname.startsWith(item.href);
+      return item.href !== '/' && (pathname ?? '').startsWith(item.href);
     });
     setPageTitle(currentNavItem ? currentNavItem.label : APP_NAME);
   }, [pathname]);
@@ -25,7 +25,7 @@ export function Header() {
     if (item.href === '/dashboard' && (pathname === '/' || pathname === '/dashboard')) return true;
     if (item.href === '/') return pathname === '/'; // For exact match on root like landing page
     // For other nested routes
-    return item.href !== '/' && pathname.startsWith(item.href);
+    return item.href !== '/' && (pathname ?? '').startsWith(item.href);
   });
 
 

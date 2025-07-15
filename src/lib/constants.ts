@@ -38,6 +38,7 @@ export const AUTH_NAV_ITEMS: NavItem[] = [
   { href: '/expenses', label: 'Expenses', icon: CreditCard, matchSegments: 1 },
   { href: '/budgets', label: 'Budgets', icon: TrendingUp, matchSegments: 1 },
   { href: '/insights', label: 'Insights', icon: BarChart3, matchSegments: 1 },
+  { href: '/goals', label: 'Goals', icon: Target, matchSegments: 1 },
 ];
 
 export const UNAUTH_NAV_ITEMS: NavItem[] = [

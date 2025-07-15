@@ -34,6 +34,7 @@ export default function RootLayout({
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
+    if (!auth) return;
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setFirebaseUser(user);
       setIsLoadingAuth(false); // Auth state determined
@@ -51,7 +52,7 @@ export default function RootLayout({
   useEffect(() => {
     if (isLoadingAuth) return; // Don't redirect until auth state is known
 
-    const isPublicPath = pathname === '/' || pathname.startsWith('/login');
+    const isPublicPath = pathname === '/' || (pathname?.startsWith('/login') ?? false);
 
     if (firebaseUser && isPublicPath) {
       // If logged in and on a public path, redirect to dashboard
@@ -77,7 +78,7 @@ export default function RootLayout({
     return null;
   }
 
-  const isPublicPath = pathname === '/' || pathname.startsWith('/login');
+  const isPublicPath = pathname === '/' || (pathname?.startsWith('/login') ?? false);
   const isAuthenticated = !!firebaseUser;
 
   if (isLoadingAuth && !isPublicPath) {
@@ -85,7 +86,7 @@ export default function RootLayout({
     return (
       <html lang="en" suppressHydrationWarning>
         <head>
-            <title>{APP_NAME} - Loading...</title>
+            <title>{`${APP_NAME} - Loading...`}</title>
             <meta name="description" content="Loading your financial dashboard." />
         </head>
         <body className={`${inter.variable} font-sans antialiased`} suppressHydrationWarning={true}>
@@ -101,7 +102,7 @@ export default function RootLayout({
     return (
       <html lang="en" suppressHydrationWarning>
         <head>
-            <title>{APP_NAME}</title>
+            <title>{`${APP_NAME}`}</title>
             <meta name="description" content="Your personified finance tracker!" />
         </head>
         <body className={`${inter.variable} font-sans antialiased`} suppressHydrationWarning={true}>
@@ -116,7 +117,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
        <head>
-            <title>{APP_NAME} - App</title>
+            <title>{`${APP_NAME} - App`}</title>
             <meta name="description" content="Manage your finances." />
         </head>
       <body className={`${inter.variable} font-sans antialiased`} suppressHydrationWarning={true}>

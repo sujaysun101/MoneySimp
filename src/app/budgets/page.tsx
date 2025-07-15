@@ -1,4 +1,3 @@
-
 // src/app/budgets/page.tsx
 "use client";
 import React, { useState, useEffect, useCallback, useRef } from 'react';

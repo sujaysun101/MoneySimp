@@ -25,6 +25,7 @@ export function SidebarNav() {
   const { setOpenMobile, isMobile } = useSidebar(); 
 
   useEffect(() => {
+    if (!auth) return;
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setIsAuthenticated(!!user);
     });
@@ -38,6 +39,10 @@ export function SidebarNav() {
   };
   
   const handleLogout = async () => {
+    if (!auth) {
+      toast({ title: "Logout Failed", description: "Authentication not initialized.", variant: "destructive" });
+      return;
+    }
     try {
       await signOut(auth);
       localStorage.removeItem('moneySimpLoggedIn');
@@ -75,7 +80,7 @@ export function SidebarNav() {
   const isActive = (item: NavItem) => {
     if (item.href === '/') return pathname === '/';
     if (item.href === '/dashboard') return pathname === '/dashboard' || (isAuthenticated && pathname === '/'); 
-    return pathname.startsWith(item.href);
+    return pathname ? pathname.startsWith(item.href) : false;
   };
 
   return (
