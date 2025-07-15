@@ -57,7 +57,4 @@ const generateFinanceTipFlow = ai.defineFlow(
 );
 
 // Explicitly export only types and the main async function
-export {
-    type FinanceTipInput,
-    type FinanceTipOutput
-};
+export {};

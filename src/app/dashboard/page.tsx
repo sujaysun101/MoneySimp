@@ -1,4 +1,3 @@
-
 // src/app/dashboard/page.tsx
 "use client"; 
 
@@ -109,98 +108,98 @@ export default function DashboardPage() {
 
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto py-8 px-2 sm:px-4 md:px-6 lg:px-8 w-full max-w-full">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground">Your smart personal finance overview.</p>
+        <h1 className="text-3xl font-bold text-foreground break-words truncate max-w-full sm:max-w-2xl">Dashboard</h1>
+        <p className="text-muted-foreground break-words truncate max-w-full sm:max-w-2xl">Your smart personal finance overview.</p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
-        <Card className="shadow-md hover:shadow-lg transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Balance</CardTitle>
-            <DollarSign className="h-5 w-5 text-accent" />
+        <Card className="shadow-md hover:shadow-lg transition-shadow min-w-0 break-words">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 min-w-0">
+            <CardTitle className="text-sm font-medium truncate">Total Balance</CardTitle>
+            <DollarSign className="h-5 w-5 text-accent flex-shrink-0" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${clientTotalBalance !== null ? clientTotalBalance : '0.00'}</div>
+            <div className="text-2xl font-bold truncate">${clientTotalBalance !== null ? clientTotalBalance : '0.00'}</div>
           </CardContent>
         </Card>
-        <Card className="shadow-md hover:shadow-lg transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">This Month's Spending</CardTitle>
-            <TrendingUp className="h-5 w-5 text-destructive" />
+        <Card className="shadow-md hover:shadow-lg transition-shadow min-w-0 break-words">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 min-w-0">
+            <CardTitle className="text-sm font-medium truncate">This Month's Spending</CardTitle>
+            <TrendingUp className="h-5 w-5 text-destructive flex-shrink-0" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${clientMonthlySpending !== null ? clientMonthlySpending : '0.00'}</div>
+            <div className="text-2xl font-bold truncate">${clientMonthlySpending !== null ? clientMonthlySpending : '0.00'}</div>
           </CardContent>
         </Card>
-        <Card className="shadow-md hover:shadow-lg transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Budget Progress</CardTitle>
-            <Landmark className="h-5 w-5 text-primary" />
+        <Card className="shadow-md hover:shadow-lg transition-shadow min-w-0 break-words">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 min-w-0">
+            <CardTitle className="text-sm font-medium truncate">Budget Progress</CardTitle>
+            <Landmark className="h-5 w-5 text-primary flex-shrink-0" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{clientBudgetProgress !== null ? clientBudgetProgress : '0'}% Utilized</div>
+            <div className="text-2xl font-bold truncate">{clientBudgetProgress !== null ? clientBudgetProgress : '0'}% Utilized</div>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
-        <div className="md:col-span-2">
-          <Card className="shadow-lg">
+        <div className="md:col-span-2 min-w-0">
+          <Card className="shadow-lg min-w-0">
             <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-              <CardDescription>Manage your finances with ease.</CardDescription>
+              <CardTitle className="truncate">Quick Actions</CardTitle>
+              <CardDescription className="truncate">Manage your finances with ease.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2">
               <Link href="/expenses" passHref>
-                <Button variant="outline" className="w-full justify-start text-left p-4 h-auto">
-                  <PlusCircle className="mr-3 h-5 w-5 text-primary" />
-                  <div>
-                    <p className="font-semibold">Add New Expense</p>
-                    <p className="text-xs text-muted-foreground">Log your recent spendings.</p>
+                <Button variant="outline" className="w-full justify-start text-left p-4 h-auto min-w-0">
+                  <PlusCircle className="mr-3 h-5 w-5 text-primary flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="font-semibold truncate">Add New Expense</p>
+                    <p className="text-xs text-muted-foreground truncate">Log your recent spendings.</p>
                   </div>
                 </Button>
               </Link>
               <Link href="/budgets" passHref>
-                 <Button variant="outline" className="w-full justify-start text-left p-4 h-auto">
-                  <TrendingUp className="mr-3 h-5 w-5 text-primary" />
-                   <div>
-                    <p className="font-semibold">Set/View Budgets</p>
-                    <p className="text-xs text-muted-foreground">Manage your monthly budgets.</p>
+                 <Button variant="outline" className="w-full justify-start text-left p-4 h-auto min-w-0">
+                  <TrendingUp className="mr-3 h-5 w-5 text-primary flex-shrink-0" />
+                   <div className="min-w-0">
+                    <p className="font-semibold truncate">Set/View Budgets</p>
+                    <p className="text-xs text-muted-foreground truncate">Manage your monthly budgets.</p>
                   </div>
                 </Button>
               </Link>
             </CardContent>
           </Card>
           
-          <Card className="mt-6 shadow-lg">
+          <Card className="mt-6 shadow-lg min-w-0">
             <CardHeader>
-                <CardTitle className="flex items-center">
-                  <PieChart className="mr-2 h-5 w-5 text-primary" />
-                  Spending This Month ({format(new Date(), 'MMMM yyyy')})
+                <CardTitle className="flex items-center truncate">
+                  <PieChart className="mr-2 h-5 w-5 text-primary flex-shrink-0" />
+                  <span className="truncate">Spending This Month ({format(new Date(), 'MMMM yyyy')})</span>
                 </CardTitle>
-                <CardDescription>Overview of your spending by category for the current month.</CardDescription>
+                <CardDescription className="truncate">Overview of your spending by category for the current month.</CardDescription>
             </CardHeader>
             <CardContent 
-              className="flex flex-col items-center text-center cursor-pointer hover:bg-muted/50 transition-colors rounded-md p-4"
+              className="flex flex-col items-center text-center cursor-pointer hover:bg-muted/50 transition-colors rounded-md p-4 min-w-0"
               onClick={() => handleChartClick(currentMonthChartData, `Spending Breakdown - ${format(new Date(), 'MMMM yyyy')}`)}
             >
               {currentMonthChartData.length > 0 ? (
-                <div className="w-full h-[300px]"> {/* Ensure container has dimensions */}
+                <div className="w-full h-[300px] min-w-0"> {/* Ensure container has dimensions */}
                   <SpendingBreakdownChart data={currentMonthChartData} />
                 </div>
               ) : (
-                <div className="h-[300px] flex flex-col justify-center items-center text-muted-foreground">
-                  <Info className="h-10 w-10 mb-3" />
-                  <p>No spending data for this month to display.</p>
-                  <p className="text-sm">Add expenses to see your breakdown.</p>
+                <div className="h-[300px] flex flex-col justify-center items-center text-muted-foreground min-w-0">
+                  <Info className="h-10 w-10 mb-3 flex-shrink-0" />
+                  <p className="truncate">No spending data for this month to display.</p>
+                  <p className="text-sm truncate">Add expenses to see your breakdown.</p>
                 </div>
               )}
-               <p className="text-xs text-muted-foreground mt-2">Click to enlarge</p>
+               <p className="text-xs text-muted-foreground mt-2 truncate">Click to enlarge</p>
             </CardContent>
-             <CardContent className="pt-4 flex flex-col items-center text-center">
-                 <p className="text-muted-foreground mb-4">More detailed charts are available in the Insights section.</p>
+             <CardContent className="pt-4 flex flex-col items-center text-center min-w-0">
+                 <p className="text-muted-foreground mb-4 truncate">More detailed charts are available in the Insights section.</p>
                 <Link href="/insights" passHref>
                     <Button>Go to Insights</Button>
                 </Link>
@@ -208,7 +207,7 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        <div className="md:col-span-1">
+        <div className="md:col-span-1 min-w-0">
            <AIFinanceTipCard mockSpendingSummary={spendingHabitsSummary} />
         </div>
       </div>

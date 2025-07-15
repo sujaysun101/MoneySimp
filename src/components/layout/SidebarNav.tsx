@@ -25,6 +25,7 @@ export function SidebarNav() {
   const { setOpenMobile, isMobile } = useSidebar(); 
 
   useEffect(() => {
+    if (!auth) return;
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setIsAuthenticated(!!user);
     });
@@ -38,6 +39,10 @@ export function SidebarNav() {
   };
   
   const handleLogout = async () => {
+    if (!auth) {
+      toast({ title: "Logout Failed", description: "Authentication not initialized.", variant: "destructive" });
+      return;
+    }
     try {
       await signOut(auth);
       localStorage.removeItem('moneySimpLoggedIn');
@@ -51,12 +56,31 @@ export function SidebarNav() {
     }
   };
 
-  const currentNavItems = isAuthenticated ? AUTH_NAV_ITEMS : UNAUTH_NAV_ITEMS;
+  let currentNavItems = isAuthenticated ? AUTH_NAV_ITEMS : UNAUTH_NAV_ITEMS;
+
+  // Add Settings tab to Insights section if authenticated
+  if (isAuthenticated) {
+    const insightsIndex = currentNavItems.findIndex(item => item.label === 'Insights');
+    if (insightsIndex !== -1) {
+      const settingsExists = currentNavItems.some(item => item.label === 'Settings');
+      if (!settingsExists) {
+        currentNavItems = [
+          ...currentNavItems.slice(0, insightsIndex + 1),
+          {
+            label: 'Settings',
+            href: '/settings',
+            icon: PiggyBank, // Replace with a settings icon if available
+          },
+          ...currentNavItems.slice(insightsIndex + 1),
+        ];
+      }
+    }
+  }
 
   const isActive = (item: NavItem) => {
     if (item.href === '/') return pathname === '/';
     if (item.href === '/dashboard') return pathname === '/dashboard' || (isAuthenticated && pathname === '/'); 
-    return pathname.startsWith(item.href);
+    return pathname ? pathname.startsWith(item.href) : false;
   };
 
   return (
@@ -99,24 +123,24 @@ export function SidebarNav() {
                   </a>
                 </SidebarMenuButton>
               ) : ( // Internal Next.js Link
-                <Link href={item.href} passHref legacyBehavior>
+                <Link href={item.href}>
                   <SidebarMenuButton
-                    asChild 
+                    asChild
                     variant="default"
                     size="default"
                     className={cn(
                       "justify-start w-full",
                       isActive(item) ?
-                      "bg-sidebar-accent text-sidebar-accent-foreground font-semibold" :
-                      "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                        "bg-sidebar-accent text-sidebar-accent-foreground font-semibold" :
+                        "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                     )}
                     tooltip={item.label}
                     isActive={isActive(item)}
                   >
-                    <a onClick={handleNavItemClick}>
+                    <span onClick={handleNavItemClick} className="flex items-center">
                       <item.icon className={cn("h-5 w-5", isActive(item) ? "text-primary" : "text-sidebar-foreground/70 group-hover/menu-button:text-sidebar-accent-foreground")} />
                       <span className="truncate">{item.label}</span>
-                    </a>
+                    </span>
                   </SidebarMenuButton>
                 </Link>
               )}
