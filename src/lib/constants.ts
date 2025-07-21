@@ -2,7 +2,7 @@ import type { Category } from './types';
 import {
   ShoppingCart, Home, Car, Film, Zap, HeartPulse, Utensils, Shirt, Plane, DollarSign,
   LayoutDashboard, CreditCard, TrendingUp, BarChart3, Briefcase, BookOpen, Gift, LogIn, Send,
-  BarChartHorizontalBig, Target
+  BarChartHorizontalBig, Target, RefreshCw, Settings, Landmark
 } from 'lucide-react';
 
 export const APP_NAME = "MoneySimp";
@@ -35,10 +35,13 @@ export interface NavItem {
 
 export const AUTH_NAV_ITEMS: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, matchSegments: 1 },
+  { href: '/accounts', label: 'Accounts', icon: Landmark, matchSegments: 1 },
   { href: '/expenses', label: 'Expenses', icon: CreditCard, matchSegments: 1 },
   { href: '/budgets', label: 'Budgets', icon: TrendingUp, matchSegments: 1 },
   { href: '/insights', label: 'Insights', icon: BarChart3, matchSegments: 1 },
+  { href: '/subscriptions', label: 'Subscriptions', icon: RefreshCw, matchSegments: 1 },
   { href: '/goals', label: 'Goals', icon: Target, matchSegments: 1 },
+  { href: '/settings', label: 'Settings', icon: Settings, matchSegments: 1 },
 ];
 
 export const UNAUTH_NAV_ITEMS: NavItem[] = [
@@ -57,3 +60,4 @@ export const ALL_NAV_ITEMS = [...AUTH_NAV_ITEMS, ...UNAUTH_NAV_ITEMS];
 // Local storage keys
 export const EXPENSES_STORAGE_KEY = 'moneySimp-expenses';
 export const BUDGETS_STORAGE_KEY = 'moneySimp-budgets';
+export const SUBSCRIPTIONS_STORAGE_KEY = 'moneySimp-subscriptions';

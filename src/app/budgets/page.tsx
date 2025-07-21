@@ -33,7 +33,7 @@ export default function BudgetsPage() {
 
   useEffect(() => {
     const isLoggedIn = localStorage.getItem('moneySimpLoggedIn');
-    if (!isLoggedIn && !auth.currentUser) { 
+    if (!isLoggedIn && !(auth && auth.currentUser)) { 
       router.replace('/login');
     } else {
       setIsLoading(false);
@@ -224,7 +224,7 @@ export default function BudgetsPage() {
   }
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto py-8 px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-foreground">Manage Budgets</h1>
         <p className="text-muted-foreground">Set financial goals and track your progress for the current month.</p>

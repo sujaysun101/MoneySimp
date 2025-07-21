@@ -1,4 +1,3 @@
-
 // src/app/expenses/page.tsx
 "use client"; 
 
@@ -85,7 +84,7 @@ export default function ExpensesPage() {
   }
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto py-8 px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-foreground">Manage Expenses</h1>
         <p className="text-muted-foreground">Track your spending and scan bills effortlessly.</p>

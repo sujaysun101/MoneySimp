@@ -1,4 +1,3 @@
-
 // src/app/insights/page.tsx
 "use client";
 import { SpendingBreakdownChart, type SpendingDataPoint } from '@/components/insights/SpendingBreakdownChart';
@@ -12,6 +11,7 @@ import type { Expense, Budget } from '@/lib/types';
 import { CATEGORIES, EXPENSES_STORAGE_KEY, BUDGETS_STORAGE_KEY } from '@/lib/constants';
 import { format, subMonths, startOfMonth, isSameMonth } from 'date-fns';
 import { ChartModal } from '@/components/shared/ChartModal'; // Import the modal
+import { Circle } from "lucide-react"; // Add this import for the default icon
 
 export default function InsightsPage() {
   const router = useRouter();
@@ -154,15 +154,15 @@ export default function InsightsPage() {
     const storedBudgets = localStorage.getItem(BUDGETS_STORAGE_KEY);
     if (storedBudgets) {
       try {
-        const parsedBudgets: Omit<Budget, 'icon' | 'name' | 'spentAmount' >[] = JSON.parse(storedBudgets);
-         const fullBudgets = parsedBudgets.map(b => {
+        const parsedBudgets: Budget[] = JSON.parse(storedBudgets);
+        const fullBudgets = parsedBudgets.map(b => {
           const category = CATEGORIES.find(c => c.id === b.categoryId);
           return {
             ...b,
-            id: (b as any).id || b.categoryId, 
+            id: (b as any).id || b.categoryId,
             name: category?.name || 'Unknown Category',
-            icon: category?.icon || (() => null), 
-            spentAmount: 0, 
+            icon: category?.icon || Circle, // Use a default LucideIcon if missing
+            spentAmount: 0,
           };
         });
         setBudgets(fullBudgets);
@@ -190,7 +190,7 @@ export default function InsightsPage() {
   }
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto py-8 px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-foreground">Spending Insights</h1>
         <p className="text-muted-foreground">Understand your financial habits with visual data. Click on charts to enlarge.</p>

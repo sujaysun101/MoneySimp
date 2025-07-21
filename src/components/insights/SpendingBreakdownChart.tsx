@@ -2,7 +2,7 @@
 "use client"
 
 import * as React from "react"
-import { PieChart as PieChartIcon, Info, type LucideIcon, MoreVertical, Download, Printer, Cell as RechartsCell } from "lucide-react" 
+import { PieChart as PieChartIcon, Info, type LucideIcon, MoreVertical, Download, Printer } from "lucide-react" 
 import { Pie, PieChart, ResponsiveContainer, Cell, Tooltip, Legend } from "recharts"
 import html2canvas from 'html2canvas';
 import { useToast } from "@/hooks/use-toast";

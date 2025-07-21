@@ -4,10 +4,11 @@
 import { AIFinanceTipCard } from '@/components/shared/AIFinanceTipCard';
 import { ChartModal } from '@/components/shared/ChartModal';
 import { SpendingBreakdownChart, type SpendingDataPoint } from '@/components/insights/SpendingBreakdownChart';
+import { SubscriptionReminders } from '@/components/subscriptions/SubscriptionReminders';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { DollarSign, TrendingUp, Landmark, PlusCircle, PieChart, Info } from 'lucide-react';
+import { DollarSign, TrendingUp, Landmark, PlusCircle, PieChart, Info, RefreshCw, Target } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Expense } from '@/lib/types';
@@ -108,7 +109,7 @@ export default function DashboardPage() {
 
 
   return (
-    <div className="container mx-auto py-8 px-2 sm:px-4 md:px-6 lg:px-8 w-full max-w-full">
+    <div className="container mx-auto py-8 px-8 sm:px-12 md:px-16 lg:px-20 w-full max-w-full">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-foreground break-words truncate max-w-full sm:max-w-2xl">Dashboard</h1>
         <p className="text-muted-foreground break-words truncate max-w-full sm:max-w-2xl">Your smart personal finance overview.</p>
@@ -170,6 +171,24 @@ export default function DashboardPage() {
                   </div>
                 </Button>
               </Link>
+              <Link href="/subscriptions" passHref>
+                <Button variant="outline" className="w-full justify-start text-left p-4 h-auto min-w-0">
+                  <RefreshCw className="mr-3 h-5 w-5 text-primary flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="font-semibold truncate">Manage Subscriptions</p>
+                    <p className="text-xs text-muted-foreground truncate">Track recurring payments.</p>
+                  </div>
+                </Button>
+              </Link>
+              <Link href="/goals" passHref>
+                <Button variant="outline" className="w-full justify-start text-left p-4 h-auto min-w-0">
+                  <Target className="mr-3 h-5 w-5 text-primary flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="font-semibold truncate">Financial Goals</p>
+                    <p className="text-xs text-muted-foreground truncate">Set and track your goals.</p>
+                  </div>
+                </Button>
+              </Link>
             </CardContent>
           </Card>
           
@@ -207,8 +226,9 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        <div className="md:col-span-1 min-w-0">
-           <AIFinanceTipCard mockSpendingSummary={spendingHabitsSummary} />
+        <div className="md:col-span-1 min-w-0 space-y-6">
+          <SubscriptionReminders maxItems={3} />
+          <AIFinanceTipCard mockSpendingSummary={spendingHabitsSummary} />
         </div>
       </div>
       <ChartModal 

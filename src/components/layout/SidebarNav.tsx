@@ -58,25 +58,6 @@ export function SidebarNav() {
 
   let currentNavItems = isAuthenticated ? AUTH_NAV_ITEMS : UNAUTH_NAV_ITEMS;
 
-  // Add Settings tab to Insights section if authenticated
-  if (isAuthenticated) {
-    const insightsIndex = currentNavItems.findIndex(item => item.label === 'Insights');
-    if (insightsIndex !== -1) {
-      const settingsExists = currentNavItems.some(item => item.label === 'Settings');
-      if (!settingsExists) {
-        currentNavItems = [
-          ...currentNavItems.slice(0, insightsIndex + 1),
-          {
-            label: 'Settings',
-            href: '/settings',
-            icon: PiggyBank, // Replace with a settings icon if available
-          },
-          ...currentNavItems.slice(insightsIndex + 1),
-        ];
-      }
-    }
-  }
-
   const isActive = (item: NavItem) => {
     if (item.href === '/') return pathname === '/';
     if (item.href === '/dashboard') return pathname === '/dashboard' || (isAuthenticated && pathname === '/'); 
@@ -138,8 +119,8 @@ export function SidebarNav() {
                     isActive={isActive(item)}
                   >
                     <span onClick={handleNavItemClick} className="flex items-center">
-                      <item.icon className={cn("h-5 w-5", isActive(item) ? "text-primary" : "text-sidebar-foreground/70 group-hover/menu-button:text-sidebar-accent-foreground")} />
-                      <span className="truncate">{item.label}</span>
+                      <item.icon className={cn("h-5 w-5 ml-6", isActive(item) ? "text-primary" : "text-sidebar-foreground/70 group-hover/menu-button:text-sidebar-accent-foreground")} />
+                      <span className="truncate ml-2">{item.label}</span>
                     </span>
                   </SidebarMenuButton>
                 </Link>

@@ -51,6 +51,13 @@ export default function GoalsPage() {
   const [completedGoalId, setCompletedGoalId] = useState<string | null>(null);
   const [deletedGoalId, setDeletedGoalId] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string>("");
+  // Notification state for type
+  const [actionType, setActionType] = useState<string>("");
+  const notificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Add animation classes for swipe in/out
+  const [completeOverlayVisible, setCompleteOverlayVisible] = useState(false);
+  const [deleteOverlayVisible, setDeleteOverlayVisible] = useState(false);
 
   useEffect(() => {
     if (!auth) return;
@@ -114,6 +121,7 @@ export default function GoalsPage() {
       });
       setEditGoalId(null);
       setActionMessage(`Goal "${editName}" updated!`);
+      setActionType("edit");
       const userId = user.uid;
       setGoals(await getGoals(userId));
     } catch (error) {
@@ -133,6 +141,7 @@ export default function GoalsPage() {
       await deleteGoal(goalId);
       setDeletedGoalId(goalId);
       setActionMessage(`Goal "${prevData?.name || "Goal"}" deleted!`);
+      setActionType("delete");
       setTimeout(() => setDeletedGoalId(null), 3000);
       const userId = user.uid;
       setGoals(await getGoals(userId));
@@ -159,6 +168,7 @@ export default function GoalsPage() {
       });
       setCompletedGoalId(goalId);
       setActionMessage(`Goal "${prevData?.name || "Goal"}" marked as completed!`);
+      setActionType("complete");
       setTimeout(() => setCompletedGoalId(null), 3000);
       const userId = user.uid;
       setGoals(await getGoals(userId));
@@ -217,6 +227,7 @@ export default function GoalsPage() {
       setProgressEditGoalId(null);
       setProgressAmount(0);
       setActionMessage("Goal progress updated!");
+      setActionType("progress");
       const userId = user.uid;
       setGoals(await getGoals(userId));
       triggerConfetti();
@@ -250,6 +261,54 @@ export default function GoalsPage() {
   // Clear action message on any user action (edit, delete, complete, update, undo, add, etc.)
   const clearActionMessage = () => setActionMessage("");
 
+  // Update completed goal overlay effect (already present)
+  useEffect(() => {
+    if (completedGoalId) {
+      setCompleteOverlayVisible(true);
+      const timeout = setTimeout(() => {
+        setCompleteOverlayVisible(false);
+        setTimeout(() => {
+          setGoals(goals => goals.filter(g => g.id !== completedGoalId));
+          setCompletedGoalId(null);
+        }, 500); // match exit animation duration
+      }, 3000);
+      return () => clearTimeout(timeout);
+    }
+  }, [completedGoalId]);
+
+  // Add delete overlay effect
+  useEffect(() => {
+    if (deletedGoalId) {
+      setDeleteOverlayVisible(true);
+      const timeout = setTimeout(() => {
+        setDeleteOverlayVisible(false);
+        setTimeout(() => {
+          setDeletedGoalId(null);
+        }, 500); // match exit animation duration
+      }, 3000);
+      return () => clearTimeout(timeout);
+    }
+  }, [deletedGoalId]);
+
+  // Notification auto-dismiss logic
+  useEffect(() => {
+    if (actionMessage) {
+      if (notificationTimeoutRef.current) clearTimeout(notificationTimeoutRef.current);
+      notificationTimeoutRef.current = setTimeout(() => {
+        setActionMessage("");
+        setActionType("");
+      }, 5000);
+    }
+    return () => {
+      if (notificationTimeoutRef.current) clearTimeout(notificationTimeoutRef.current);
+    };
+  }, [actionMessage]);
+
+  const handleCloseNotification = () => {
+    setActionMessage("");
+    setActionType("");
+  };
+
   if (isLoading) {
     return (
       <div className="container mx-auto py-8 flex justify-center items-center min-h-[calc(100vh-10rem)]">
@@ -259,7 +318,7 @@ export default function GoalsPage() {
   }
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto py-8 px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16">
       {showCompleteOverlay && (
         <div className="fixed inset-0 flex flex-col items-center justify-center z-50 bg-green-200 animate-fade-in-out">
           <div className="text-7xl text-green-700 mb-4">✔️</div>
@@ -300,11 +359,25 @@ export default function GoalsPage() {
           ✅ Auto-transfer recommendation accepted and applied!
         </div>
       )}
-      {actionMessage && (
-        <div className="mb-4 px-4 py-2 bg-blue-100 border border-blue-300 text-blue-900 rounded shadow text-center font-medium">
-          {actionMessage}
-        </div>
-      )}
+      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center">
+        {actionMessage && (
+          <div
+            className={`relative flex items-center gap-2 px-6 py-3 rounded-lg shadow-lg text-lg font-semibold animate-popup
+              ${actionType === "delete" ? "bg-red-700 text-white" : "bg-primary text-primary-foreground"}
+            `}
+            style={{ minWidth: 220, maxWidth: 400, transition: 'opacity 0.5s, transform 0.5s' }}
+          >
+            <span>{actionMessage}</span>
+            <button
+              onClick={handleCloseNotification}
+              className="ml-3 text-xl font-bold focus:outline-none hover:opacity-70"
+              aria-label="Close notification"
+            >
+              ×
+            </button>
+          </div>
+        )}
+      </div>
       <div className="space-y-6">
         {goals.length === 0 && <p className="text-muted-foreground">No goals set yet. Start by adding one above!</p>}
         {goals.map(goal => {
@@ -315,17 +388,17 @@ export default function GoalsPage() {
               <div className="relative">
                 {/* Completion overlay */}
                 {completedGoalId === goal.id && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center z-20 bg-green-100/90 rounded-lg">
-                    <div className="text-6xl text-green-700 mb-2">✔️</div>
-                    <div className="text-xl font-bold text-green-900 mb-1">Goal completed!</div>
-                    <div className="text-green-800">Congratulations!</div>
+                  <div className={`absolute inset-0 flex flex-col items-center justify-center z-20 bg-primary text-primary-foreground rounded-lg transition-transform duration-500 ${completeOverlayVisible ? 'animate-swipe-in' : 'animate-swipe-out'}`}>
+                    <div className="text-6xl mb-2">✔️</div>
+                    <div className="text-xl font-bold mb-1">Goal completed!</div>
+                    <div>Congratulations!</div>
                   </div>
                 )}
                 {/* Deletion overlay */}
                 {deletedGoalId === goal.id && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center z-20 bg-red-100/90 rounded-lg">
-                    <div className="text-6xl text-red-700 mb-2">🗑️</div>
-                    <div className="text-xl font-bold text-red-900 mb-1">Goal deleted!</div>
+                  <div className={`absolute inset-0 flex flex-col items-center justify-center z-20 bg-red-700 text-white rounded-lg transition-transform duration-500 ${deleteOverlayVisible ? 'animate-swipe-in-delete' : 'animate-swipe-out-delete'}`}>
+                    <div className="text-6xl mb-2">🗑️</div>
+                    <div className="text-xl font-bold mb-1">Goal deleted!</div>
                   </div>
                 )}
                 <CardHeader>
@@ -425,6 +498,45 @@ export default function GoalsPage() {
           );
         })}
       </div>
+      <style jsx global>{`
+        @keyframes popup {
+          0% { opacity: 0; transform: scale(0.2); }
+          60% { opacity: 1; transform: scale(1.1); }
+          80% { transform: scale(0.95); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+        .animate-popup {
+          animation: popup 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+        @keyframes swipeIn {
+          0% { transform: translateX(100%); opacity: 0; }
+          100% { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes swipeOut {
+          0% { transform: translateX(0); opacity: 1; }
+          100% { transform: translateX(-100%); opacity: 0; }
+        }
+        .animate-swipe-in {
+          animation: swipeIn 0.5s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+        }
+        .animate-swipe-out {
+          animation: swipeOut 0.5s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+        }
+        @keyframes swipeInDelete {
+          0% { transform: translateX(-100%); opacity: 0; }
+          100% { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes swipeOutDelete {
+          0% { transform: translateX(0); opacity: 1; }
+          100% { transform: translateX(100%); opacity: 0; }
+        }
+        .animate-swipe-in-delete {
+          animation: swipeInDelete 0.5s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+        }
+        .animate-swipe-out-delete {
+          animation: swipeOutDelete 0.5s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+        }
+      `}</style>
     </div>
   );
 }
