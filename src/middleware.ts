@@ -1,10 +1,10 @@
-import { clerkMiddleware } from "@clerk/nextjs/server";
+//import { clerkMiddleware } from "@clerk/nextjs/server";
 
-export default clerkMiddleware();
+//export default clerkMiddleware();
 
-export const config = {
+//export const config = {
   // Protect all routes except the public ones (adjust as needed)
-  matcher: [
+  //matcher: [
     /*
      * Match all request paths except for the ones starting with:
      * - api (API routes)
@@ -14,6 +14,6 @@ export const config = {
      * - login (your login page)
      * - (add other public routes here)
      */
-    "/((?!api|_next/static|_next/image|favicon.ico|login).*)",
-  ],
-};
+    //"/((?!api|_next/static|_next/image|favicon.ico|login).*)",
+  //],
+//};
