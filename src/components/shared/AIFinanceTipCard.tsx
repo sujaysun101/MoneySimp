@@ -5,274 +5,313 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Lightbulb, RefreshCw, TrendingUp, AlertTriangle, DollarSign, Target, Zap } from 'lucide-react';
+import { Lightbulb, RefreshCw, Sparkles, Loader2, Calendar } from 'lucide-react';
 import { getPersonalizedFinanceTip } from '@/app/actions';
-import { Skeleton } from '@/components/ui/skeleton';
 import type { Expense, Subscription, Goal } from '@/lib/types';
-import AIInsightsService, { SpendingInsight } from '@/lib/ai-insights';
-// If SpendingInsight is a type you need, ensure it is exported from ai-insights.ts and import it like:
-// import AIInsightsService, { SpendingInsight } from '@/lib/ai-insights';
 
-interface AIFinanceTipCardProps {
+interface SmartMoneyTipsProps {
   expenses?: Expense[];
   subscriptions?: Subscription[];
   goals?: Goal[];
-  mockSpendingSummary?: string; 
-  showInsights?: boolean;
-  insightType?: 'general' | 'anomaly' | 'cost_cutting' | 'forecast' | 'subscription_optimization';
 }
 
-interface EnhancedTip {
+interface DailyTip {
   tip: string;
-  tipType: 'general' | 'anomaly_alert' | 'cost_saving' | 'forecast_warning' | 'subscription_alert';
-  priority: 'low' | 'medium' | 'high';
-  potentialSavings?: number;
-  actionItems: string[];
-  category?: string;
+  category: string;
+  impact: 'low' | 'medium' | 'high';
+  generatedDate: string;
 }
 
 export function AIFinanceTipCard({ 
   expenses = [], 
   subscriptions = [], 
-  goals = [],
-  mockSpendingSummary,
-  showInsights = true,
-  insightType = 'general'
-}: AIFinanceTipCardProps) {
-  const [tip, setTip] = useState<EnhancedTip | null>(null);
-  const [insights, setInsights] = useState<SpendingInsight[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [activeInsight, setActiveInsight] = useState<SpendingInsight | null>(null);
+  goals = []
+}: SmartMoneyTipsProps) {
+  const [currentTip, setCurrentTip] = useState<DailyTip | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [lastGenerated, setLastGenerated] = useState<string>('');
 
-  const fetchEnhancedTip = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      if (expenses.length > 0) {
-        // Get AI-powered tip with spending data
-        const enhancedTip = await AIInsightsService.generatePersonalizedTip(
-          expenses, 
-          subscriptions, 
-          goals,
-          insightType
-        );
-        // Ensure enhancedTip matches EnhancedTip type
-        if (
-          enhancedTip &&
-          typeof enhancedTip.tip === 'string' &&
-          'tipType' in enhancedTip &&
-          typeof (enhancedTip as any).tipType === 'string' &&
-          'priority' in enhancedTip &&
-          typeof (enhancedTip as any).priority === 'string' &&
-          'actionItems' in enhancedTip &&
-          Array.isArray((enhancedTip as any).actionItems)
-        ) {
-          setTip(enhancedTip as EnhancedTip);
-        } else if (enhancedTip && typeof enhancedTip.tip === 'string') {
-          setTip({
-            tip: enhancedTip.tip,
-            tipType: 'general',
-            priority: 'medium',
-            actionItems: ['Follow this general advice']
-          });
-        } else {
-          setTip({
-            tip: "Sorry, we couldn't fetch a tip right now. Please try again later.",
-            tipType: 'general',
-            priority: 'low',
-            actionItems: ['Try refreshing the page']
-          });
-        }
-
-        // Get spending insights if enabled
-        if (showInsights) {
-          const spendingInsights = await AIInsightsService.generateSpendingInsights(
-            expenses,
-            subscriptions,
-            goals
-          );
-          setInsights(spendingInsights.slice(0, 3)); // Show top 3 insights
-          
-          // Set the first high-priority insight as active
-          const highPriorityInsight = spendingInsights.find((insight: SpendingInsight) => insight.severity === 'high');
-          if (highPriorityInsight) {
-            setActiveInsight(highPriorityInsight);
+  // Check for daily tip on mount
+  useEffect(() => {
+    const checkDailyTip = async () => {
+      const today = new Date().toDateString();
+      const stored = localStorage.getItem('smartMoneyTip');
+      
+      if (stored) {
+        try {
+          const storedTip = JSON.parse(stored);
+          if (storedTip.date === today) {
+            // Use today's tip
+            setCurrentTip(storedTip);
+            setLastGenerated('Today');
+            return;
           }
+        } catch (e) {
+          console.log('Invalid stored tip, generating new one');
         }
-      } else {
-        // Fallback to simple tip
-        const spendingHabits = mockSpendingSummary || "User is looking for general finance tips.";
-        const result = await getPersonalizedFinanceTip(spendingHabits);
-        setTip({
-          tip: result.tip,
-          tipType: 'general',
-          priority: 'medium',
-          actionItems: ['Follow this general advice']
-        });
       }
-    } catch (error) {
-      console.error("Failed to fetch enhanced finance tip:", error);
-      setTip({
-        tip: "Sorry, we couldn't fetch a tip right now. Please try again later.",
-        tipType: 'general',
-        priority: 'low',
-        actionItems: ['Try refreshing the page']
+      
+      // Generate new tip for today
+      if (expenses.length > 0) {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+          // Get recent expenses (last 7 days)
+          const sevenDaysAgo = new Date();
+          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+          
+          const recentExpenses = expenses.filter(exp => 
+            new Date(exp.date) >= sevenDaysAgo
+          );
+
+          // Calculate recent spending patterns
+          const recentTotal = recentExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+          const weeklyAverage = recentTotal;
+          const monthlyProjection = weeklyAverage * 4.33;
+
+          // Category breakdown
+          const categorySpending = recentExpenses.reduce((acc, exp) => {
+            acc[exp.categoryId] = (acc[exp.categoryId] || 0) + exp.amount;
+            return acc;
+          }, {} as Record<string, number>);
+
+          const topCategory = Object.entries(categorySpending)
+            .sort(([,a], [,b]) => b - a)[0];
+
+          // Create concise data summary for AI
+          const dataSummary = `Recent 7-day spending: $${recentTotal.toFixed(2)}. Monthly projection: $${monthlyProjection.toFixed(2)}. Top category: ${topCategory?.[0] || 'none'} ($${topCategory?.[1]?.toFixed(2) || '0'}). Active subscriptions: ${subscriptions.length}. Financial goals: ${goals.length}.`;
+
+          console.log('Generating daily tip with recent data:', dataSummary);
+
+          const result = await getPersonalizedFinanceTip({
+            spendingHabits: dataSummary,
+            recentTransactions: recentExpenses.slice(0, 5).map(exp => ({
+              amount: exp.amount,
+              category: exp.categoryId,
+              date: new Date(exp.date).toISOString(),
+              description: exp.description
+            })),
+            currentMonthSpending: categorySpending,
+            subscriptions: subscriptions.map(sub => ({
+              name: sub.name,
+              amount: sub.amount,
+              frequency: sub.frequency
+            })),
+            goals: goals.map(goal => ({
+              name: goal.name,
+              target: goal.targetAmount,
+              saved: goal.savedAmount
+            })),
+            requestType: 'general'
+          });
+
+          if (result) {
+            const dailyTip: DailyTip = {
+              tip: result.tip,
+              category: result.tipType.replace('_', ' '),
+              impact: result.priority,
+              generatedDate: new Date().toLocaleDateString()
+            };
+            
+            setCurrentTip(dailyTip);
+            setLastGenerated(new Date().toLocaleTimeString());
+            
+            // Store in localStorage with today's date
+            localStorage.setItem('smartMoneyTip', JSON.stringify({
+              ...dailyTip,
+              date: today
+            }));
+            
+            console.log('Daily tip generated successfully:', dailyTip);
+          }
+        } catch (err) {
+          console.error('Error generating daily tip:', err);
+          setError('Unable to generate tip. Please try again.');
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    checkDailyTip();
+  }, [expenses.length, subscriptions.length, goals.length]);
+
+  // Handle refresh - generate new tip
+  const handleRefresh = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Get recent expenses (last 7 days)
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      
+      const recentExpenses = expenses.filter(exp => 
+        new Date(exp.date) >= sevenDaysAgo
+      );
+
+      // Calculate recent spending patterns
+      const recentTotal = recentExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+      const weeklyAverage = recentTotal;
+      const monthlyProjection = weeklyAverage * 4.33;
+
+      // Category breakdown
+      const categorySpending = recentExpenses.reduce((acc, exp) => {
+        acc[exp.categoryId] = (acc[exp.categoryId] || 0) + exp.amount;
+        return acc;
+      }, {} as Record<string, number>);
+
+      const topCategory = Object.entries(categorySpending)
+        .sort(([,a], [,b]) => b - a)[0];
+
+      // Create concise data summary for AI
+      const dataSummary = `Recent 7-day spending: $${recentTotal.toFixed(2)}. Monthly projection: $${monthlyProjection.toFixed(2)}. Top category: ${topCategory?.[0] || 'none'} ($${topCategory?.[1]?.toFixed(2) || '0'}). Active subscriptions: ${subscriptions.length}. Financial goals: ${goals.length}.`;
+
+      console.log('Refreshing tip with recent data:', dataSummary);
+
+      const result = await getPersonalizedFinanceTip({
+        spendingHabits: dataSummary,
+        recentTransactions: recentExpenses.slice(0, 5).map(exp => ({
+          amount: exp.amount,
+          category: exp.categoryId,
+          date: new Date(exp.date).toISOString(),
+          description: exp.description
+        })),
+        currentMonthSpending: categorySpending,
+        subscriptions: subscriptions.map(sub => ({
+          name: sub.name,
+          amount: sub.amount,
+          frequency: sub.frequency
+        })),
+        goals: goals.map(goal => ({
+          name: goal.name,
+          target: goal.targetAmount,
+          saved: goal.savedAmount
+        })),
+        requestType: 'general'
       });
+
+      if (result) {
+        const dailyTip: DailyTip = {
+          tip: result.tip,
+          category: result.tipType.replace('_', ' '),
+          impact: result.priority,
+          generatedDate: new Date().toLocaleDateString()
+        };
+        
+        setCurrentTip(dailyTip);
+        setLastGenerated(new Date().toLocaleTimeString());
+        
+        // Store in localStorage with today's date
+        const today = new Date().toDateString();
+        localStorage.setItem('smartMoneyTip', JSON.stringify({
+          ...dailyTip,
+          date: today
+        }));
+        
+        console.log('New tip generated on refresh:', dailyTip);
+      }
+    } catch (err) {
+      console.error('Error refreshing tip:', err);
+      setError('Unable to generate tip. Please try again.');
     } finally {
       setIsLoading(false);
     }
-  }, [expenses, subscriptions, goals, mockSpendingSummary, showInsights, insightType]);
+  }, [expenses, subscriptions, goals]);
 
-  useEffect(() => {
-    fetchEnhancedTip();
-  }, [fetchEnhancedTip]);
-
-  const getTipIcon = (tipType: string) => {
-    switch (tipType) {
-      case 'anomaly_alert': return <AlertTriangle className="h-4 w-4" />;
-      case 'cost_saving': return <DollarSign className="h-4 w-4" />;
-      case 'forecast_warning': return <TrendingUp className="h-4 w-4" />;
-      case 'subscription_alert': return <Zap className="h-4 w-4" />;
-      default: return <Lightbulb className="h-4 w-4" />;
+  const getImpactColor = (impact: string) => {
+    switch (impact) {
+      case 'high': return 'text-red-600 bg-red-50';
+      case 'medium': return 'text-orange-600 bg-orange-50';
+      default: return 'text-blue-600 bg-blue-50';
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'destructive';
-      case 'medium': return 'default';
-      case 'low': return 'secondary';
-      default: return 'default';
-    }
-  };
-
-  const getInsightIcon = (type: string) => {
-    switch (type) {
-      case 'anomaly': return <AlertTriangle className="h-4 w-4 text-orange-500" />;
-      case 'cost_saving': return <DollarSign className="h-4 w-4 text-green-500" />;
-      case 'forecast': return <TrendingUp className="h-4 w-4 text-blue-500" />;
-      case 'subscription': return <Zap className="h-4 w-4 text-purple-500" />;
-      default: return <Target className="h-4 w-4 text-gray-500" />;
+  const getImpactBadge = (impact: string) => {
+    switch (impact) {
+      case 'high': return 'High Impact';
+      case 'medium': return 'Medium Impact';
+      default: return 'Low Impact';
     }
   };
 
   return (
-    <div className="space-y-4">
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between text-lg font-semibold">
-            <div className="flex items-center">
-              <Lightbulb className="mr-2 h-6 w-6 text-accent" />
-              Smart Money Tip
-            </div>
-            {tip && (
-              <Badge variant={getPriorityColor(tip.priority)} className="flex items-center gap-1">
-                {getTipIcon(tip.tipType)}
-                {tip.priority.toUpperCase()}
-              </Badge>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+    <Card className="shadow-lg border-l-4 border-l-blue-500">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+        <CardTitle className="text-lg font-semibold flex items-center gap-2">
+          <Sparkles className="h-5 w-5 text-blue-600" />
+          Smart Money Tips
+          <Badge variant="outline" className="text-xs">
+            Daily AI
+          </Badge>
+        </CardTitle>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleRefresh}
+          disabled={isLoading}
+          className="h-8 w-8 p-0"
+          title="Get new tip"
+        >
           {isLoading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCw className="h-4 w-4" />
+          )}
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Analyzing your recent spending...
             </div>
-          ) : tip ? (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">{tip.tip}</p>
-              
-              {tip.potentialSavings && (
-                <Alert>
-                  <DollarSign className="h-4 w-4" />
-                  <AlertDescription>
-                    Potential monthly savings: <span className="font-semibold text-green-600">${tip.potentialSavings}</span>
-                  </AlertDescription>
-                </Alert>
-              )}
-              
-              {tip.actionItems.length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="font-medium text-sm">Action Steps:</h4>
-                  <ul className="text-xs text-muted-foreground space-y-1">
-                    {tip.actionItems.map((action, index) => (
-                      <li key={index} className="flex items-start gap-2">
-                        <span className="text-accent">•</span>
-                        {action}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          ) : null}
-          
-          <Button onClick={fetchEnhancedTip} disabled={isLoading} variant="outline" size="sm" className="mt-4 group">
-            <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : 'group-hover:animate-spin'}`} />
-            {isLoading ? 'Analyzing...' : 'Get New Tip'}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Active High-Priority Insight */}
-      {activeInsight && (
-        <Card className="border-l-4 border-l-orange-500">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              {getInsightIcon(activeInsight.type)}
-              {activeInsight.title}
-              <Badge variant="outline" className="text-xs">
-                {activeInsight.severity.toUpperCase()}
+            <div className="h-20 bg-muted/50 rounded animate-pulse" />
+          </div>
+        ) : error ? (
+          <Alert>
+            <Lightbulb className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : currentTip ? (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Badge 
+                variant="secondary" 
+                className={`${getImpactColor(currentTip.impact)} border-0`}
+              >
+                {getImpactBadge(currentTip.impact)}
               </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <p className="text-sm text-muted-foreground mb-2">{activeInsight.message}</p>
-            {activeInsight.potentialSavings && (
-              <p className="text-xs text-green-600 font-medium">
-                Save up to ${activeInsight.potentialSavings}/month
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Additional Insights Preview */}
-      {showInsights && insights.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-blue-500" />
-              Recent Insights
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="space-y-2">
-              {insights.slice(0, 2).map((insight) => (
-                <div 
-                  key={insight.id} 
-                  className="flex items-center justify-between p-2 rounded-lg bg-muted/50 hover:bg-muted cursor-pointer transition-colors"
-                  onClick={() => setActiveInsight(insight)}
-                >
-                  <div className="flex items-center gap-2">
-                    {getInsightIcon(insight.type)}
-                    <span className="text-xs font-medium">{insight.title}</span>
-                  </div>
-                  <Badge variant="outline" className="text-xs">
-                    {insight.type.replace('_', ' ')}
-                  </Badge>
-                </div>
-              ))}
+              <Badge variant="outline" className="capitalize">
+                {currentTip.category}
+              </Badge>
             </div>
-            {insights.length > 2 && (
-              <Button variant="ghost" size="sm" className="w-full mt-2 text-xs">
-                View All Insights ({insights.length})
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      )}
-    </div>
+            
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border">
+              <p className="text-sm leading-relaxed text-gray-700 font-medium">
+                {currentTip.tip}
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
+              <span className="flex items-center gap-1">
+                <Calendar className="h-3 w-3" />
+                Generated: {lastGenerated}
+              </span>
+              <span>Based on your recent activity</span>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <Sparkles className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+            <p className="text-sm text-muted-foreground mb-2">No recent spending data</p>
+            <p className="text-xs text-muted-foreground">Add some expenses to get personalized tips!</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

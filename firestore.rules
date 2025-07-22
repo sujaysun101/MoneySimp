@@ -1,0 +1,48 @@
+// firestore.rules
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can only access their own data
+    function isOwner(resource) {
+      return request.auth != null && request.auth.uid == resource.data.userId;
+    }
+    
+    function isValidUser() {
+      return request.auth != null;
+    }
+    
+    // Bank accounts - users can only read/write their own accounts
+    match /bankAccounts/{accountId} {
+      allow read, write: if isValidUser() && isOwner(resource);
+      allow create: if isValidUser() && request.auth.uid == request.resource.data.userId;
+    }
+    
+    // Transactions - users can only read/write their own transactions
+    match /transactions/{transactionId} {
+      allow read, write: if isValidUser() && isOwner(resource);
+      allow create: if isValidUser() && request.auth.uid == request.resource.data.userId;
+    }
+    
+    // Expenses - users can only read/write their own expenses
+    match /expenses/{expenseId} {
+      allow read, write: if isValidUser() && isOwner(resource);
+      allow create: if isValidUser() && request.auth.uid == request.resource.data.userId;
+    }
+    
+    // Subscriptions - users can only read/write their own subscriptions
+    match /subscriptions/{subscriptionId} {
+      allow read, write: if isValidUser() && isOwner(resource);
+      allow create: if isValidUser() && request.auth.uid == request.resource.data.userId;
+    }
+    
+    // User sync data - users can only read/write their own sync data
+    match /userSyncData/{userId} {
+      allow read, write: if isValidUser() && request.auth.uid == userId;
+    }
+    
+    // Deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

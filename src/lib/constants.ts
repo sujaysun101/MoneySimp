@@ -36,10 +36,10 @@ export interface NavItem {
 export const AUTH_NAV_ITEMS: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, matchSegments: 1 },
   { href: '/accounts', label: 'Accounts', icon: Landmark, matchSegments: 1 },
+  { href: '/subscriptions', label: 'Subscriptions', icon: RefreshCw, matchSegments: 1 },
   { href: '/expenses', label: 'Expenses', icon: CreditCard, matchSegments: 1 },
   { href: '/budgets', label: 'Budgets', icon: TrendingUp, matchSegments: 1 },
   { href: '/insights', label: 'Insights', icon: BarChart3, matchSegments: 1 },
-  { href: '/subscriptions', label: 'Subscriptions', icon: RefreshCw, matchSegments: 1 },
   { href: '/goals', label: 'Goals', icon: Target, matchSegments: 1 },
   { href: '/settings', label: 'Settings', icon: Settings, matchSegments: 1 },
 ];

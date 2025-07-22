@@ -56,7 +56,7 @@ export interface BankAccount {
   id: string;
   institutionId: string;
   institutionName: string;
-  accountId: string; // Plaid account_id or Yodlee account id
+  accountId: string; // Yodlee account id
   name: string;
   officialName?: string;
   type: 'checking' | 'savings' | 'credit' | 'loan' | 'investment' | 'other';
@@ -70,15 +70,14 @@ export interface BankAccount {
   isActive: boolean;
   lastSynced: Date;
   currency: string;
-  provider: 'plaid' | 'yodlee'; // Bank integration provider
+  provider: 'yodlee'; // Bank integration provider
   providerAccountId?: string; // Provider-specific account identifier
-  accessToken?: string; // For Plaid or similar providers
+  accessToken?: string; // For Yodlee or similar providers
 }
 
 export interface Transaction {
   id: string;
   accountId: string;
-  plaidTransactionId?: string;
   amount: number;
   date: Date;
   description: string;
@@ -106,23 +105,6 @@ export interface Transaction {
     paymentMethod?: string;
     paymentProcessor?: string;
     reason?: string;
-  };
-}
-
-export interface PlaidLinkSuccess {
-  publicToken: string;
-  metadata: {
-    institution: {
-      name: string;
-      institution_id: string;
-    };
-    accounts: Array<{
-      id: string;
-      name: string;
-      mask: string;
-      type: string;
-      subtype: string;
-    }>;
   };
 }
 

@@ -21,7 +21,7 @@ interface DetectedSubscription {
   confidence: number;
   expenses: Expense[];
   nextPaymentDate: Date;
-  source: 'plaid_recurring' | 'pattern_detection' | 'manual_expenses';
+  source: 'yodlee_recurring' | 'pattern_detection' | 'manual_expenses';
   accountId?: string;
 }
 
@@ -69,12 +69,12 @@ export function SubscriptionDetection({ expenses, existingSubscriptions, onAddDe
 
   const analyzeBankTransactions = async (secureStorage: SecureStorage, userId: string) => {
     try {
-      const accessTokens = secureStorage.getItem<{[key: string]: string}>('plaidAccessTokens') || {};
+      const yodleeTokens = secureStorage.getItem<{[key: string]: string}>('yodleeAccessTokens') || {};
       const detected: DetectedSubscription[] = [];
       
-      for (const [institutionId, accessToken] of Object.entries(accessTokens)) {
-        // Use Plaid's enhanced subscription detection
-        const response = await fetch('/api/plaid/detect-subscriptions', {
+      for (const [accountId, accessToken] of Object.entries(yodleeTokens)) {
+        // Use Yodlee's subscription detection
+        const response = await fetch('/api/yodlee/detect-subscriptions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ accessToken, userId }),
@@ -90,7 +90,7 @@ export function SubscriptionDetection({ expenses, existingSubscriptions, onAddDe
             
             if (!exists) {
               detected.push({
-                id: `plaid-${Date.now()}-${Math.random()}`,
+                id: `yodlee-${Date.now()}-${Math.random()}`,
                 name: sub.name,
                 amount: sub.amount,
                 frequency: sub.frequency,
@@ -98,7 +98,7 @@ export function SubscriptionDetection({ expenses, existingSubscriptions, onAddDe
                 confidence: sub.confidence,
                 expenses: [], // Bank transactions don't map to manual expenses
                 nextPaymentDate: calculateNextPaymentDate(sub.lastDate || new Date(), sub.frequency),
-                source: sub.source || 'plaid_recurring',
+                source: sub.source || 'yodlee_recurring',
                 accountId: sub.accountId,
               });
             }

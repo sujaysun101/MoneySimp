@@ -128,20 +128,32 @@ class YodleeService {
 
   private async authenticate(): Promise<void> {
     try {
-      const response = await axios.post(
-        `${YODLEE_CONFIG.baseURL}/auth/token`,
-        {
-          clientId: YODLEE_CONFIG.clientId,
-          secret: YODLEE_CONFIG.secret
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Api-Version': '1.1'
-          }
+      console.log('🔐 Attempting Yodlee authentication...');
+      console.log('📍 Base URL:', YODLEE_CONFIG.baseURL);
+      console.log('🆔 Client ID:', YODLEE_CONFIG.clientId ? 'Present' : 'Missing');
+      console.log('🔑 Secret:', YODLEE_CONFIG.secret ? 'Present' : 'Missing');
+      console.log('🔧 Adding required headers for sandbox...');
+      
+      const authUrl = `${YODLEE_CONFIG.baseURL}/auth/token`;
+      console.log('🔗 Auth URL:', authUrl);
+      
+      const payload = {
+        clientId: YODLEE_CONFIG.clientId,
+        secret: YODLEE_CONFIG.secret
+      };
+      
+      console.log('📦 Payload:', { ...payload, secret: payload.secret ? '[REDACTED]' : 'Missing' });
+      
+      const response = await axios.post(authUrl, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Api-Version': '1.1',
+          'loginName': YODLEE_CONFIG.clientId,
+          'Cobrand-Name': 'restserver'
         }
-      );
+      });
 
+      console.log('✅ Authentication successful');
       const { token } = response.data;
       this.accessToken = token.accessToken;
       
@@ -150,7 +162,12 @@ class YodleeService {
       this.tokenExpiry.setMinutes(this.tokenExpiry.getMinutes() + 25); // 5 min buffer
       
     } catch (error) {
-      console.error('Yodlee authentication failed:', error);
+      console.error('❌ Yodlee authentication failed:', error);
+      if (axios.isAxiosError(error) && error.response) {
+        console.error('📄 Response status:', error.response.status);
+        console.error('📄 Response data:', error.response.data);
+        console.error('📄 Response headers:', error.response.headers);
+      }
       throw new Error('Failed to authenticate with Yodlee');
     }
   }
@@ -177,12 +194,12 @@ class YodleeService {
   // Generate FastLink URL for user authentication
   async generateFastLinkUrl(userId: string, callbackUrl?: string): Promise<string> {
     try {
-      const response = await this.client.post('/auth/token', {
-        clientId: YODLEE_CONFIG.clientId,
-        secret: YODLEE_CONFIG.secret
-      });
-
-      const userToken = response.data.token.accessToken;
+      // Ensure we have a valid token
+      await this.ensureValidToken();
+      
+      if (!this.accessToken) {
+        throw new Error('No access token available');
+      }
       
       // FastLink configuration
       const fastLinkConfig = {
@@ -195,8 +212,9 @@ class YodleeService {
       };
 
       const fastLinkParams = new URLSearchParams(fastLinkConfig);
-      const fastLinkUrl = `${YODLEE_CONFIG.baseURL}/authenticate/restserver/fastlink?${fastLinkParams.toString()}&accessToken=${userToken}`;
+      const fastLinkUrl = `${YODLEE_CONFIG.baseURL}/authenticate/restserver/fastlink?${fastLinkParams.toString()}&accessToken=${this.accessToken}`;
       
+      console.log('Generated FastLink URL:', fastLinkUrl.substring(0, 100) + '...');
       return fastLinkUrl;
     } catch (error) {
       console.error('Error generating FastLink URL:', error);

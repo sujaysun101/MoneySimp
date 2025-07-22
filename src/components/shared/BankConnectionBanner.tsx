@@ -141,26 +141,12 @@ export function IntegrationStatusCard() {
           title: 'Privacy Mode',
           description: 'Manual tracking with maximum privacy'
         };
-      case 'plaid-enabled':
-        return {
-          color: 'green',
-          icon: Zap,
-          title: 'Plaid Connected',
-          description: 'Ready for bank integration'
-        };
       case 'yodlee-enabled':
         return {
           color: 'green',
           icon: Globe,
           title: 'Yodlee Connected',
           description: 'Global bank integration available'
-        };
-      case 'both-enabled':
-        return {
-          color: 'purple',
-          icon: CreditCard,
-          title: 'Multiple Providers',
-          description: 'Choose your preferred bank integration'
         };
       default:
         return {

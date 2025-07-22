@@ -2,7 +2,7 @@
 "use client";
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { SecureStorage } from '@/lib/encryption';
-import { initOfflineStorage, getOfflineStorage, clearOfflineStorage } from '@/lib/offlineStorage';
+import { initHybridStorage, getHybridStorage, clearHybridStorage } from '@/lib/hybridStorage';
 import { auth } from '@/lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import type { SyncStatus } from '@/lib/types';
@@ -77,13 +77,13 @@ export function SecurityProvider({ children }: SecurityProviderProps) {
       const storage = new SecureStorage(user.uid, user.email || '');
       setSecureStorage(storage);
 
-      // Initialize offline storage
-      await initOfflineStorage(user.uid, storage['encryptionKey']);
+      // Initialize hybrid storage (Firestore + offline)
+      await initHybridStorage(user.uid, storage['encryptionKey']);
       setIsOfflineReady(true);
 
       // Get last sync time
-      const offlineStorage = getOfflineStorage();
-      const lastSync = await offlineStorage.getLastSyncTime();
+      const hybridStorage = getHybridStorage();
+      const lastSync = await hybridStorage.getLastSyncTime();
       setSyncStatus(prev => ({ ...prev, lastSync }));
 
       console.log('Security context initialized for user:', user.uid);
@@ -98,7 +98,7 @@ export function SecurityProvider({ children }: SecurityProviderProps) {
       if (secureStorage) {
         secureStorage.clear();
       }
-      await clearOfflineStorage();
+      await clearHybridStorage();
       setSecureStorage(null);
       setIsOfflineReady(false);
       setIsLocked(false);

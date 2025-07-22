@@ -18,7 +18,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { UploadCloud, Image as ImageIcon, Camera, RefreshCcw, CheckCircle, AlertTriangle } from 'lucide-react';
-import Image from 'next/image';
+import Image from "next/legacy/image";
 import { extractAndRecordBill } from '@/app/actions';
 import type { Expense } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -248,7 +248,6 @@ export function BillUploadForm({ onAddExpense }: BillUploadFormProps) {
           <Camera className="mr-2 h-4 w-4" /> Take Photo
         </TabsTrigger>
       </TabsList>
-
       <TabsContent value="upload">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -256,7 +255,7 @@ export function BillUploadForm({ onAddExpense }: BillUploadFormProps) {
               control={form.control}
               name="billImageFile"
               render={({ field }) => ( // field is not directly used for input due to custom handler
-                <FormItem>
+                (<FormItem>
                   <FormLabel>Upload Bill Image</FormLabel>
                   <FormControl>
                     <div className="flex flex-col items-center justify-center w-full">
@@ -286,7 +285,7 @@ export function BillUploadForm({ onAddExpense }: BillUploadFormProps) {
                     </div>
                   </FormControl>
                   <FormMessage />
-                </FormItem>
+                </FormItem>)
               )}
             />
              <Button type="submit" className="w-full md:w-auto" disabled={!filePreview || isProcessing}>
@@ -303,7 +302,6 @@ export function BillUploadForm({ onAddExpense }: BillUploadFormProps) {
           </form>
         </Form>
       </TabsContent>
-
       <TabsContent value="capture">
         <div className="space-y-4">
           {hasCameraPermission === null && !isCameraActive && (
@@ -360,13 +358,13 @@ export function BillUploadForm({ onAddExpense }: BillUploadFormProps) {
            <video ref={videoRef} className="hidden" autoPlay playsInline muted />
         </div>
       </TabsContent>
-       {isProcessing && (
-        <div className="mt-4 space-y-2">
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-4 w-3/4" />
-            <Skeleton className="h-4 w-1/2" />
-        </div>
-        )}
+      {isProcessing && (
+       <div className="mt-4 space-y-2">
+           <Skeleton className="h-8 w-full" />
+           <Skeleton className="h-4 w-3/4" />
+           <Skeleton className="h-4 w-1/2" />
+       </div>
+       )}
     </Tabs>
   );
 }

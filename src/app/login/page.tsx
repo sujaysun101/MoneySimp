@@ -88,7 +88,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     // Check if already logged in via Firebase on component mount
-    if (auth.currentUser) {
+    if (auth?.currentUser) {
       router.replace('/dashboard');
     }
   }, [router]);
@@ -100,6 +100,11 @@ export default function LoginPage() {
 
   const handleEmailPasswordLogin = async (values: LoginFormValues) => {
     // Zod validation handles empty fields before this point
+    if (!auth) {
+      toast({ title: "Error", description: "Authentication service not available", variant: "destructive" });
+      return;
+    }
+    
     try {
       await signInWithEmailAndPassword(auth, values.email, values.password);
       toast({ title: "Login Successful", description: "Welcome back!" });
@@ -127,6 +132,11 @@ export default function LoginPage() {
 
   const handleEmailPasswordSignup = async (values: SignupFormValues) => {
      // Zod validation handles empty fields and password match before this point
+    if (!auth) {
+      toast({ title: "Error", description: "Authentication service not available", variant: "destructive" });
+      return;
+    }
+    
     try {
       await createUserWithEmailAndPassword(auth, values.email, values.password);
       // Clear any potential guest data on new user signup
@@ -157,6 +167,12 @@ export default function LoginPage() {
           duration: 7000,
         });
     }
+    
+    if (!auth) {
+      toast({ title: "Error", description: "Authentication service not available", variant: "destructive" });
+      return;
+    }
+    
     try {
       const result = await signInWithPopup(auth, authProvider);
       const user = result.user;

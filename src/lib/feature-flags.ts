@@ -2,8 +2,7 @@
 export const FEATURE_FLAGS = {
   // Bank integration options
   BANK_INTEGRATION: process.env.NEXT_PUBLIC_ENABLE_BANK_INTEGRATION === 'true',
-  PLAID_ENABLED: !!(process.env.NEXT_PUBLIC_PLAID_CLIENT_ID && process.env.PLAID_SECRET),
-  YODLEE_ENABLED: !!(process.env.NEXT_PUBLIC_YODLEE_CLIENT_ID && process.env.YODLEE_SECRET),
+  YODLEE_ENABLED: !!(process.env.NEXT_PUBLIC_YODLEE_CLIENT_ID && process.env.NEXT_PUBLIC_YODLEE_ENV),
   
   // Mode settings
   MANUAL_MODE_ONLY: process.env.NEXT_PUBLIC_MANUAL_MODE_ONLY === 'true',
@@ -22,22 +21,12 @@ export const FEATURE_FLAGS = {
 
 export type BankIntegrationStatus = 
   | 'manual-only' 
-  | 'plaid-enabled' 
   | 'yodlee-enabled' 
-  | 'both-enabled' 
   | 'manual-fallback';
 
 export const getBankIntegrationStatus = (): BankIntegrationStatus => {
   if (FEATURE_FLAGS.MANUAL_MODE_ONLY) {
     return 'manual-only';
-  }
-  
-  if (FEATURE_FLAGS.PLAID_ENABLED && FEATURE_FLAGS.YODLEE_ENABLED) {
-    return 'both-enabled';
-  }
-  
-  if (FEATURE_FLAGS.PLAID_ENABLED) {
-    return 'plaid-enabled';
   }
   
   if (FEATURE_FLAGS.YODLEE_ENABLED) {
@@ -50,16 +39,6 @@ export const getBankIntegrationStatus = (): BankIntegrationStatus => {
 export const getAvailableBankProviders = () => {
   const providers = [];
   
-  if (FEATURE_FLAGS.PLAID_ENABLED) {
-    providers.push({
-      id: 'plaid',
-      name: 'Plaid',
-      description: 'Connect to 11,000+ banks and credit unions',
-      features: ['Real-time transactions', 'Account balances', 'Subscription detection'],
-      countries: ['US', 'CA', 'UK', 'EU'],
-      status: 'active'
-    });
-  }
   
   if (FEATURE_FLAGS.YODLEE_ENABLED) {
     providers.push({
@@ -93,7 +72,6 @@ export const shouldShowBankConnection = (): boolean => {
 export const getFeatureDescription = (feature: keyof typeof FEATURE_FLAGS): string => {
   const descriptions = {
     BANK_INTEGRATION: 'Automatically connect to your bank accounts',
-    PLAID_ENABLED: 'Plaid bank integration for US, CA, UK, and EU banks',
     YODLEE_ENABLED: 'Yodlee bank integration for global coverage',
     MANUAL_MODE_ONLY: 'Privacy-first manual expense tracking only',
     AUTO_SYNC_ENABLED: 'Automatic transaction synchronization',
@@ -126,12 +104,8 @@ export const detectRuntimeCapabilities = () => {
 export const validateConfiguration = () => {
   const issues = [];
   
-  if (FEATURE_FLAGS.BANK_INTEGRATION && !FEATURE_FLAGS.PLAID_ENABLED && !FEATURE_FLAGS.YODLEE_ENABLED) {
+  if (FEATURE_FLAGS.BANK_INTEGRATION && !FEATURE_FLAGS.YODLEE_ENABLED) {
     issues.push('Bank integration enabled but no providers configured');
-  }
-  
-  if (FEATURE_FLAGS.PLAID_ENABLED && (!process.env.NEXT_PUBLIC_PLAID_CLIENT_ID || !process.env.PLAID_SECRET)) {
-    issues.push('Plaid enabled but missing credentials');
   }
   
   if (FEATURE_FLAGS.YODLEE_ENABLED && (!process.env.NEXT_PUBLIC_YODLEE_CLIENT_ID || !process.env.YODLEE_SECRET)) {

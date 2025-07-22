@@ -9,6 +9,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { getGoals, getSpendingRecommendation, updateGoalProgress, deleteGoal, setUserAutoTransfer } from "@/lib/firebase/goals";
 import { db } from "@/lib/firebase"; // Import the Firestore db instance
+import { updateDoc, doc, getDoc, setDoc } from "firebase/firestore";
 
 async function fetchAIRecommendation(userId: string) {
   // You can pass user's spending/goals context if needed
@@ -103,7 +104,6 @@ export default function GoalsPage() {
   // Handler for saving edits (with undo support)
   const handleSaveEdit = async (goalId: string) => {
     try {
-      const { updateDoc, doc, getDoc } = await import("firebase/firestore");
       if (!db) {
         alert("Firestore database is not initialized");
         return;
@@ -133,7 +133,6 @@ export default function GoalsPage() {
   const handleDeleteGoal = async (goalId: string) => {
     if (!window.confirm("Are you sure you want to delete this goal?")) return;
     try {
-      const { doc, getDoc } = await import("firebase/firestore");
       const goalRef = doc(db as import("firebase/firestore").Firestore, "goals", goalId);
       const prevSnap = await getDoc(goalRef);
       const prevData = prevSnap.data();
@@ -153,7 +152,6 @@ export default function GoalsPage() {
   // Handler for marking a goal as completed (with undo support and overlay)
   const handleMarkCompleted = async (goalId: string) => {
     try {
-      const { updateDoc, doc, getDoc } = await import("firebase/firestore");
       if (!db) {
         alert("Firestore database is not initialized");
         return;
@@ -240,7 +238,6 @@ export default function GoalsPage() {
   const handleUndo = async () => {
     if (undoStack.length === 0) return;
     const last = undoStack[undoStack.length - 1];
-    const { doc, setDoc, updateDoc } = await import("firebase/firestore");
     if (last.type === "progress") {
       await updateGoalProgress(last.goalId, -last.amount);
     } else if (last.type === "edit" && last.prevData) {
@@ -345,6 +342,12 @@ export default function GoalsPage() {
           </Button>
         </Link>
       </div>
+      {/*
+        --- AI Insights Feature Disabled ---
+        The AI insights feature has been commented out per user request.
+        To restore, uncomment the block below.
+      */}
+      {/*
       {aiRecommendation && !acceptedAIRec && (
         <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded text-blue-900 flex flex-col gap-2">
           <div dangerouslySetInnerHTML={{ __html: aiRecommendation.replace(/\n/g, '<br/>') }} />
@@ -356,9 +359,14 @@ export default function GoalsPage() {
       )}
       {acceptedAIRec && (
         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded text-green-900">
-          ✅ Auto-transfer recommendation accepted and applied!
+          705 Auto-transfer recommendation accepted and applied!
         </div>
       )}
+      */}
+      <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded text-blue-900 flex flex-col items-center justify-center">
+        <h2 className="text-xl font-bold mb-2">AI Analyzer Coming Soon...</h2>
+        <p className="text-muted-foreground">Personalized AI-powered financial insights will be available soon!</p>
+      </div>
       <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center">
         {actionMessage && (
           <div

@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/popover";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { createGoal } from '@/lib/firebase/goals';
 
 export default function NewGoalPage() {
   const router = useRouter();
@@ -35,7 +36,7 @@ export default function NewGoalPage() {
     return () => unsubscribe();
   }, [router]);
 
-  async function createGoal(event: React.FormEvent<HTMLFormElement>) {
+  async function handleCreateGoal(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!user) return;
     const formData = new FormData(event.currentTarget);
@@ -44,7 +45,6 @@ export default function NewGoalPage() {
     const targetDate = selectedDate || new Date();
     const description = formData.get('description') as string;
     try {
-      const { createGoal } = await import('@/lib/firebase/goals');
       await createGoal({
         userId: user.uid,
         name,
@@ -74,7 +74,7 @@ export default function NewGoalPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={createGoal} className="space-y-6">
+            <form onSubmit={handleCreateGoal} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="name">Goal Name</Label>
                 <Input

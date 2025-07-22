@@ -58,9 +58,10 @@ YODLEE_SECRET=your_secret_here
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_ENABLE_BANK_INTEGRATION=true
 
-# Disable Plaid if not using it
-NEXT_PUBLIC_PLAID_CLIENT_ID=
-PLAID_SECRET=
+# Yodlee configuration only
+NEXT_PUBLIC_YODLEE_CLIENT_ID=your_yodlee_client_id
+YODLEE_SECRET=your_yodlee_secret
+NEXT_PUBLIC_YODLEE_ENV=sandbox
 ```
 
 ### Step 5: Environment Options
@@ -264,15 +265,14 @@ NEXT_PUBLIC_MANUAL_MODE_ONLY=false
 - Volume discounts available
 - Free tier options for startups
 
-## Comparison: Yodlee vs Plaid
+## Yodlee Benefits
 
-| Feature | Yodlee | Plaid |
-|---------|--------|-------|
-| **Free Tier** | ✅ 100 users forever | ❌ Limited trial |
-| **Global Coverage** | ✅ 17,000+ institutions | ❌ Mainly US/CA |
-| **Setup Complexity** | ⚠️ Moderate | ✅ Simple |
-| **Documentation** | ⚠️ Good | ✅ Excellent |
-| **Production Cost** | ✅ Competitive | ❌ Expensive |
+**Key Advantages:**
+- ✅ 100 users forever on free tier
+- ✅ 17,000+ institutions globally
+- ✅ Competitive production pricing
+- ✅ Comprehensive transaction data
+- ✅ Strong enterprise support
 
 ## Next Steps
 
@@ -323,4 +323,6 @@ NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
 NEXT_PUBLIC_FIREBASE_APP_ID=
 ```
 
-**🎉 You're all set!** Yodlee integration gives you a powerful, free alternative to Plaid with global coverage and no upfront costs.
+## Why Choose Yodlee?
+
+**🎉 You're all set!** Yodlee integration gives you a powerful bank integration solution with global coverage and no upfront costs.

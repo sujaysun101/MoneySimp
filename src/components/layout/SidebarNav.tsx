@@ -77,7 +77,7 @@ export function SidebarNav() {
           {currentNavItems.map((item) => (
             <SidebarMenuItem key={item.label}>
               {item.isButton && !item.isExternal ? ( // Client-side action button
-                <SidebarMenuButton
+                (<SidebarMenuButton
                   variant="default"
                   size="default"
                   className="justify-start w-full hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
@@ -89,9 +89,9 @@ export function SidebarNav() {
                 >
                   <item.icon className="h-5 w-5 text-sidebar-foreground/70 group-hover/menu-button:text-sidebar-accent-foreground" />
                   <span className="truncate">{item.label}</span>
-                </SidebarMenuButton>
+                </SidebarMenuButton>)
               ) : item.isExternal ? ( // External link
-                <SidebarMenuButton
+                (<SidebarMenuButton
                   asChild
                   variant="default"
                   size="default"
@@ -102,9 +102,9 @@ export function SidebarNav() {
                     <item.icon className="h-5 w-5 text-sidebar-foreground/70 group-hover/menu-button:text-sidebar-accent-foreground" />
                     <span className="truncate">{item.label}</span>
                   </a>
-                </SidebarMenuButton>
+                </SidebarMenuButton>)
               ) : ( // Internal Next.js Link
-                <Link href={item.href}>
+                (<Link href={item.href}>
                   <SidebarMenuButton
                     asChild
                     variant="default"
@@ -123,7 +123,7 @@ export function SidebarNav() {
                       <span className="truncate ml-2">{item.label}</span>
                     </span>
                   </SidebarMenuButton>
-                </Link>
+                </Link>)
               )}
             </SidebarMenuItem>
           ))}

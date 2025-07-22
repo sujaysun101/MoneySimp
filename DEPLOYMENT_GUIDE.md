@@ -18,11 +18,11 @@ This guide covers three deployment strategies for MoneySimp, from privacy-first 
 - No credit card required
 - Production-ready
 
-### Option 3: Full Integration (Future)
-**🔄 Requires paid API access**
-- Plaid + Yodlee for maximum coverage
-- Advanced features
-- Higher costs
+### Option 3: Enhanced Features (Future)
+**🔄 Requires additional development**
+- Advanced analytics
+- AI-powered insights
+- Custom integrations
 
 ## 📋 Pre-Deployment Checklist
 
@@ -47,6 +47,115 @@ git add .
 git commit -m "Ready for deployment"
 git push origin main
 ```
+
+---
+
+# 🗄️ Firestore Database Integration - Production Checklist
+
+Your MoneySimp app now includes secure cloud storage with Firestore! Follow this checklist for production deployment.
+
+## ✅ Pre-Deployment Steps
+
+### 1. Firebase Configuration
+- [ ] Verify Firebase project is set up correctly
+- [ ] Check that Firestore is enabled in Firebase Console
+- [ ] Confirm authentication is configured (Google, Email/Password, etc.)
+- [ ] Review Firebase quotas and billing settings
+
+### 2. Security Rules Deployment
+```bash
+# Deploy Firestore security rules
+firebase deploy --only firestore:rules
+```
+- [ ] Deploy the security rules from `firestore.rules`
+- [ ] Test security rules in Firebase Console Rules Playground
+- [ ] Verify users can only access their own data
+
+### 3. Environment Variables
+- [ ] Set up production Firebase config in `.env.local`
+- [ ] Ensure encryption salt is secure (`NEXT_PUBLIC_ENCRYPTION_SALT`)
+- [ ] Remove hardcoded Firebase credentials from `firebase.ts`
+
+### 4. Code Review
+- [ ] All components migrated from localStorage to hybrid storage
+- [ ] No remaining `getOfflineStorage()` calls in production code
+- [ ] Error handling is comprehensive
+- [ ] Encryption is working for sensitive fields
+
+## 🧪 Firestore Testing Checklist
+
+### 1. Functionality Tests
+- [ ] User registration/login works
+- [ ] Bank account connection (Yodlee) saves to Firestore
+- [ ] Transactions sync properly between devices
+- [ ] Subscription detection works with cloud storage
+- [ ] Offline functionality works when disconnected
+
+### 2. Security Tests
+- [ ] Users cannot access other users' data
+- [ ] Sensitive fields are encrypted in Firestore
+- [ ] Authentication is required for all operations
+- [ ] Data validation works correctly
+
+### 3. Performance Tests
+- [ ] App loads quickly with Firestore data
+- [ ] Large transaction lists load efficiently
+- [ ] Sync operations don't block the UI
+- [ ] Memory usage is reasonable
+
+## 🔒 Security Verification
+
+### 1. Firestore Console Checks
+- [ ] Open Firestore Console → Data
+- [ ] Verify sensitive fields show encrypted values
+- [ ] Check that data is properly scoped by userId
+- [ ] Confirm no PII is visible in plain text
+
+### 2. Network Analysis
+- [ ] Use browser dev tools to inspect network requests
+- [ ] Verify HTTPS is used for all Firebase calls
+- [ ] Check that no sensitive data appears in network logs
+- [ ] Confirm authentication tokens are properly managed
+
+## 📊 Monitoring Setup
+
+### 1. Firebase Monitoring
+- [ ] Enable Firestore monitoring in Firebase Console
+- [ ] Set up usage alerts for reads/writes
+- [ ] Configure error reporting
+- [ ] Monitor authentication metrics
+
+### 2. Application Monitoring
+- [ ] Add console logging for critical operations
+- [ ] Monitor sync queue growth
+- [ ] Track offline/online transitions
+- [ ] Log encryption/decryption errors
+
+## 🎯 Performance Optimization
+
+### 1. Firestore Optimization
+- [ ] Review query patterns for efficiency
+- [ ] Implement pagination for large datasets
+- [ ] Use Firestore offline persistence settings
+- [ ] Monitor and optimize read/write costs
+
+### 2. Application Optimization
+- [ ] Implement proper loading states
+- [ ] Add skeleton screens for data loading
+- [ ] Use React.memo for expensive components
+- [ ] Optimize re-renders with proper dependency arrays
+
+## 🎉 Firestore Success Criteria
+
+Your Firestore integration is successful when:
+- ✅ Users can seamlessly access their data across devices
+- ✅ All financial data is securely encrypted and stored
+- ✅ Offline functionality works without data loss
+- ✅ Performance is comparable to localStorage solution
+- ✅ Security rules prevent unauthorized data access
+- ✅ Monitoring shows healthy usage patterns
+
+---
 
 2. **Deploy on Vercel**
 - Visit [vercel.com](https://vercel.com)
@@ -183,18 +292,18 @@ NEXT_PUBLIC_ENABLE_BANK_INTEGRATION=true
 - ✅ Global coverage
 - ✅ No credit card needed
 
-### Strategy 3: Premium Launch
+### Strategy 3: Future Expansion
 ```bash
-# Full feature set (requires paid APIs)
-NEXT_PUBLIC_PLAID_CLIENT_ID=your_id
+# Additional integrations (future development)
+NEXT_PUBLIC_ADDITIONAL_PROVIDERS=future_providers
 NEXT_PUBLIC_YODLEE_CLIENT_ID=your_id
 ```
 
 **Benefits:**
-- ✅ Maximum bank coverage
-- ✅ Premium features
-- ✅ Best user experience
-- ❌ Higher costs
+- ✅ Enhanced features
+- ✅ Additional bank coverage
+- ✅ Custom integrations
+- ❌ Requires development
 
 ## 📱 Mobile Responsiveness
 
@@ -213,7 +322,7 @@ MoneySimp is fully responsive and works on:
 4. Test offline mode
 
 ### Bank Integration Testing
-1. Visit `/test/yodlee` or `/test/plaid`
+1. Visit `/test/yodlee`
 2. Run configuration tests
 3. Test bank connection flow
 4. Verify account sync
@@ -277,7 +386,7 @@ npm run build
 ### When to Upgrade APIs
 - **Manual → Yodlee**: When users request bank sync
 - **Free → Paid Yodlee**: When you hit 100 user limit
-- **Add Plaid**: When you need US-specific features
+- **Add Features**: When you need additional integrations
 
 ### Performance Optimization
 - Implement caching strategies

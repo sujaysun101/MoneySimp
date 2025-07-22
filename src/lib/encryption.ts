@@ -106,7 +106,7 @@ export class SecureStorage {
 // Utility to check if data is potentially sensitive
 export function isSensitiveData(data: any): boolean {
   const sensitiveKeys = [
-    'account', 'balance', 'transaction', 'bank', 'plaid', 
+    'account', 'balance', 'transaction', 'bank', 'yodlee', 
     'routing', 'number', 'ssn', 'tax', 'income'
   ];
   
@@ -121,7 +121,7 @@ export function sanitizeForLog(data: any): any {
   }
 
   const sanitized = { ...data };
-  const sensitiveFields = ['accountId', 'plaidTransactionId', 'mask', 'balance', 'amount', 'accessToken'];
+  const sensitiveFields = ['accountId', 'mask', 'balance', 'amount', 'accessToken'];
   
   sensitiveFields.forEach(field => {
     if (field in sanitized) {

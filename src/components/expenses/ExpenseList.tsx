@@ -12,9 +12,11 @@ import { DollarSign } from 'lucide-react';
 
 interface ExpenseListProps {
   expenses: Expense[];
+  onUpdateExpense?: (id: string, updates: Partial<Expense>) => void;
+  onDeleteExpense?: (id: string) => void;
 }
 
-export function ExpenseList({ expenses }: ExpenseListProps) {
+export function ExpenseList({ expenses, onUpdateExpense, onDeleteExpense }: ExpenseListProps) {
   const getCategory = (categoryId: string) => {
     return CATEGORIES.find(cat => cat.id === categoryId);
   };
