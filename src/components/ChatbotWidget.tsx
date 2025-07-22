@@ -2,28 +2,82 @@ import React, { useState, useRef, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { TrendingUp, AlertTriangle, DollarSign, Zap } from 'lucide-react';
+import AIInsightsService, { type SpendingInsight } from '@/lib/ai-insights';
+import type { Expense, Subscription, Goal } from '@/lib/types';
 
-// Real API call to your backend (e.g., /api/chat)
-async function fetchGeminiResponse(messages: {role: string, content: string}[], pageContext: string): Promise<string> {
+interface ChatbotMessage {
+  role: string;
+  content: string;
+  insights?: SpendingInsight[];
+  suggestions?: string[];
+}
+
+// Enhanced API call that includes financial insights
+async function fetchGeminiResponseWithInsights(
+  messages: ChatbotMessage[], 
+  pageContext: string,
+  expenses?: Expense[],
+  subscriptions?: Subscription[],
+  goals?: Goal[]
+): Promise<{ response: string; insights?: SpendingInsight[]; suggestions?: string[] }> {
   try {
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages, pageContext }),
+      body: JSON.stringify({ 
+        messages: messages.map(m => ({ role: m.role, content: m.content })), 
+        pageContext,
+        hasFinancialData: expenses && expenses.length > 0,
+        requestInsights: true
+      }),
     });
-    if (!res.ok) return "Sorry, I couldn't process your request.";
+    if (!res.ok) return { response: "Sorry, I couldn't process your request." };
     const data = await res.json();
-    return data.response || "Sorry, I couldn't process your request.";
+    
+    // Generate AI insights if financial data is available
+    let insights: SpendingInsight[] = [];
+    let suggestions: string[] = [];
+    
+    if (expenses && expenses.length > 0) {
+      // Check if user is asking about spending, savings, or budget
+      const lastMessage = messages[messages.length - 1]?.content.toLowerCase() || '';
+      if (lastMessage.includes('spending') || lastMessage.includes('save') || lastMessage.includes('budget') || lastMessage.includes('money')) {
+        insights = await AIInsightsService.generateSpendingInsights(expenses, subscriptions || [], goals);
+        
+        // Generate quick suggestions
+        suggestions = [
+          "Analyze my spending patterns",
+          "Show me potential savings",
+          "Check for spending anomalies",
+          "Forecast next month's expenses"
+        ];
+      }
+    }
+    
+    return { 
+      response: data.response || "Sorry, I couldn't process your request.",
+      insights: insights.slice(0, 3), // Top 3 insights
+      suggestions
+    };
   } catch (e) {
-    return "Sorry, there was a problem connecting to the assistant.";
+    return { response: "Sorry, there was a problem connecting to the assistant." };
   }
 }
 
-export const ChatbotWidget: React.FC = () => {
+interface ChatbotWidgetProps {
+  expenses?: Expense[];
+  subscriptions?: Subscription[];
+  goals?: Goal[];
+}
+
+export const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ expenses = [], subscriptions = [], goals = [] }) => {
   const [open, setOpen] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const [maximized, setMaximized] = useState(false);
-  const [messages, setMessages] = useState<{role: string, content: string}[]>([]);
+  const [messages, setMessages] = useState<ChatbotMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -32,6 +86,7 @@ export const ChatbotWidget: React.FC = () => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const [showWelcome, setShowWelcome] = useState(true);
+  const [activeInsights, setActiveInsights] = useState<SpendingInsight[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -39,21 +94,107 @@ export const ChatbotWidget: React.FC = () => {
 
   useEffect(() => {
     if (open && showWelcome && messages.length === 0) {
-      setMessages([{ role: "assistant", content: "👋 Welcome to MoneySimp! How can I help you today? 💡" }]);
+      const welcomeMessage = expenses.length > 0 
+        ? "👋 Welcome to MoneySimp! I can help you with spending insights, budget analysis, and financial tips. How can I assist you today? 💡"
+        : "👋 Welcome to MoneySimp! How can I help you today? 💡";
+      setMessages([{ role: "assistant", content: welcomeMessage }]);
       setShowWelcome(false);
     }
-  }, [open, showWelcome, messages.length]);
+  }, [open, showWelcome, messages.length, expenses.length]);
 
   const handleSend = async () => {
     if (!input.trim() && attachments.length === 0) return;
     const newMessages = [...messages, { role: "user", content: input }];
     setMessages(newMessages);
     setInput("");
+    setAttachments([]);
     setLoading(true);
-    // TODO: send attachments to backend and include in context
-    const response = await fetchGeminiResponse(newMessages, pageContext);
-    setMessages([...newMessages, { role: "assistant", content: response }]);
-    setLoading(false);
+    
+    try {
+      const result = await fetchGeminiResponseWithInsights(newMessages, pageContext, expenses, subscriptions, goals);
+      
+      const assistantMessage: ChatbotMessage = {
+        role: "assistant", 
+        content: result.response,
+        insights: result.insights,
+        suggestions: result.suggestions
+      };
+      
+      setMessages([...newMessages, assistantMessage]);
+      
+      // Update active insights for display
+      if (result.insights && result.insights.length > 0) {
+        setActiveInsights(result.insights);
+      }
+    } catch (error) {
+      console.error('Chat error:', error);
+      setMessages([...newMessages, { 
+        role: "assistant", 
+        content: "Sorry, I encountered an error. Please try again." 
+      }]);
+    } finally {
+      setLoading(false);
+    }
+    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+  };
+
+  const handleSuggestionClick = async (suggestion: string) => {
+    setInput(suggestion);
+    const newMessages = [...messages, { role: "user", content: suggestion }];
+    setMessages(newMessages);
+    setLoading(true);
+    
+    try {
+      let result;
+      // Handle special insight requests
+      if (suggestion.includes("spending patterns")) {
+        const insights = await AIInsightsService.generateSpendingInsights(expenses, subscriptions, goals);
+        result = {
+          response: "Here's an analysis of your spending patterns:\n\n" + 
+                   insights.map(i => `• ${i.title}: ${i.message}`).join('\n'),
+          insights: insights.slice(0, 3)
+        };
+      } else if (suggestion.includes("potential savings")) {
+        const tip = await AIInsightsService.generatePersonalizedTip(expenses, subscriptions, goals, 'cost_cutting');
+        result = {
+          response: `💰 **Money Saving Opportunity**\n\n${tip.tip}\n\n` + 
+                   ('potentialSavings' in tip && tip.potentialSavings ? `**Potential Monthly Savings:** $${tip.potentialSavings}` : ''),
+          suggestions: 'actionItems' in tip ? tip.actionItems : []
+        };
+      } else if (suggestion.includes("anomalies")) {
+        const insights = await AIInsightsService.generateSpendingInsights(expenses, subscriptions, goals);
+        const anomalies = insights.filter(i => i.type === 'anomaly');
+        result = {
+          response: anomalies.length > 0 
+            ? "🚨 **Spending Anomalies Detected**\n\n" + anomalies.map(a => `• ${a.message}`).join('\n')
+            : "✅ No unusual spending patterns detected. Your spending looks normal!",
+          insights: anomalies
+        };
+      } else {
+        result = await fetchGeminiResponseWithInsights(newMessages, pageContext, expenses, subscriptions, goals);
+      }
+      
+      const assistantMessage: ChatbotMessage = {
+        role: "assistant", 
+        content: result.response,
+        insights: result.insights,
+        suggestions: result.suggestions
+      };
+      
+      setMessages([...newMessages, assistantMessage]);
+      
+      if (result.insights && result.insights.length > 0) {
+        setActiveInsights(result.insights);
+      }
+    } catch (error) {
+      console.error('Suggestion handling error:', error);
+      setMessages([...newMessages, { 
+        role: "assistant", 
+        content: "Sorry, I couldn't process that request. Please try again." 
+      }]);
+    } finally {
+      setLoading(false);
+    }
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
   };
 

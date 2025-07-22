@@ -1,62 +1,55 @@
-
 // src/app/expenses/page.tsx
 "use client"; 
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ExpenseForm } from '@/components/expenses/ExpenseForm';
-import { BillUploadForm } from '@/components/expenses/BillUploadForm';
 import { ExpenseList } from '@/components/expenses/ExpenseList';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Expense } from '@/lib/types';
 import { v4 as uuidv4 } from 'uuid';
+import { useOptimizedExpenses } from '@/hooks/useOptimizedData';
+import { 
+  LazyExpenseForm, 
+  LazyBillUploadForm,
+  LazyFormComponent 
+} from '@/components/performance/LazyComponents';
 
-const EXPENSES_STORAGE_KEY = 'moneySimp-expenses';
+// Memoized components for better performance
+const MemoizedExpenseList = memo<{
+  expenses: Expense[];
+  onUpdateExpense?: (id: string, updates: Partial<Expense>) => void;
+  onDeleteExpense?: (id: string) => void;
+}>(ExpenseList);
 
 export default function ExpensesPage() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(true);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [expenseListKey, setExpenseListKey] = useState(0); // Used to force re-render of ExpenseList
-
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [userId, setUserId] = useState<string | undefined>();
+  
+  // Use optimized data hook
+  const {
+    data: expenses,
+    isLoading: expensesLoading,
+    error: expensesError,
+    addItem: addExpense,
+    updateItem: updateExpense,
+    removeItem: removeExpense,
+    refresh: refreshExpenses
+  } = useOptimizedExpenses(userId);
 
   // Authentication check
   useEffect(() => {
     const isLoggedIn = localStorage.getItem('moneySimpLoggedIn');
+    const storedUserId = localStorage.getItem('moneySimpUserId');
+    
     if (!isLoggedIn) {
       router.replace('/login');
     } else {
-      setIsLoading(false);
+      setUserId(storedUserId || 'default-user');
+      setIsAuthLoading(false);
     }
   }, [router]);
-
-  // Load expenses from local storage on mount
-  useEffect(() => {
-    if (isLoading) return; // Don't load if still verifying auth
-
-    const storedExpenses = localStorage.getItem(EXPENSES_STORAGE_KEY);
-    if (storedExpenses) {
-      try {
-        const parsedExpenses: Expense[] = JSON.parse(storedExpenses).map((exp: any) => ({
-          ...exp,
-          date: new Date(exp.date), // Ensure date is a Date object
-        }));
-        setExpenses(parsedExpenses);
-      } catch (error) {
-        console.error("Failed to parse expenses from localStorage:", error);
-        localStorage.removeItem(EXPENSES_STORAGE_KEY); 
-        setExpenses([]);
-      }
-    }
-  }, [isLoading]);
-
-  // Save expenses to local storage whenever they change
-  useEffect(() => {
-    if (isLoading) return; // Don't save if initial load is happening
-    localStorage.setItem(EXPENSES_STORAGE_KEY, JSON.stringify(expenses));
-  }, [expenses, isLoading]);
-
 
   const handleAddExpense = useCallback((expenseData: Omit<Expense, 'id' | 'billUrl'>) => {
     const newExpense: Expense = {
@@ -65,18 +58,15 @@ export default function ExpensesPage() {
       // Ensure date is a Date object
       date: expenseData.date instanceof Date ? expenseData.date : new Date(expenseData.date),
     };
-    setExpenses(prevExpenses => [newExpense, ...prevExpenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-    setExpenseListKey(prevKey => prevKey + 1); // Increment key to re-render list
-  }, []);
+    addExpense(newExpense);
+  }, [addExpense]);
   
-  const handleExpenseFormSubmitSuccess = () => {
-    // This function can be used if ExpenseForm needs to trigger something in parent
-    // For now, re-rendering ExpenseList is handled by handleAddExpense changing expenses state
-    // and updating expenseListKey explicitly if needed.
-  };
+  const handleExpenseFormSubmitSuccess = useCallback(() => {
+    // Optional callback for form submission success
+    console.log('Expense added successfully');
+  }, []);
 
-
-  if (isLoading) {
+  if (isAuthLoading) {
     return (
       <div className="container mx-auto py-8 flex justify-center items-center min-h-[calc(100vh-10rem)]">
         <p>Loading expenses...</p>
@@ -84,8 +74,21 @@ export default function ExpensesPage() {
     );
   }
 
+  if (expensesError) {
+    return (
+      <div className="container mx-auto py-8 px-4">
+        <div className="text-center text-red-500">
+          <p>Error loading expenses: {expensesError}</p>
+          <button onClick={refreshExpenses} className="mt-2 px-4 py-2 bg-red-500 text-white rounded">
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto py-8 px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-foreground">Manage Expenses</h1>
         <p className="text-muted-foreground">Track your spending and scan bills effortlessly.</p>
@@ -103,10 +106,12 @@ export default function ExpensesPage() {
               <CardDescription>Enter your expense details below.</CardDescription>
             </CardHeader>
             <CardContent>
-              <ExpenseForm 
-                onAddExpense={handleAddExpense} 
-                onSubmitSuccess={handleExpenseFormSubmitSuccess} 
-              />
+              <LazyFormComponent>
+                <LazyExpenseForm 
+                  onAddExpense={handleAddExpense} 
+                  onSubmitSuccess={handleExpenseFormSubmitSuccess} 
+                />
+              </LazyFormComponent>
             </CardContent>
           </Card>
         </TabsContent>
@@ -117,13 +122,19 @@ export default function ExpensesPage() {
               <CardDescription>Upload an image or take a photo of your bill to automatically extract information.</CardDescription>
             </CardHeader>
             <CardContent>
-              <BillUploadForm onAddExpense={handleAddExpense} />
+              <LazyFormComponent>
+                <LazyBillUploadForm onAddExpense={handleAddExpense} />
+              </LazyFormComponent>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
       
-      <ExpenseList key={expenseListKey} expenses={expenses} />
+      <MemoizedExpenseList 
+        expenses={expenses} 
+        onUpdateExpense={updateExpense}
+        onDeleteExpense={removeExpense}
+      />
     </div>
   );
 }

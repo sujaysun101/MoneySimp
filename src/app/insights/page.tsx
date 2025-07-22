@@ -1,22 +1,54 @@
-
 // src/app/insights/page.tsx
 "use client";
-import { SpendingBreakdownChart, type SpendingDataPoint } from '@/components/insights/SpendingBreakdownChart';
-import { SpendingTrendChart, type TrendDataPoint } from '@/components/insights/SpendingTrendChart';
-import { BudgetVsActualChart, type BudgetActualDataPoint } from '@/components/insights/BudgetVsActualChart';
-import { AverageCategorySpendingChart, type AverageSpendingDataPoint } from '@/components/insights/AverageCategorySpendingChart';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, memo } from 'react';
 import type { Expense, Budget } from '@/lib/types';
-import { CATEGORIES, EXPENSES_STORAGE_KEY, BUDGETS_STORAGE_KEY } from '@/lib/constants';
+import { CATEGORIES } from '@/lib/constants';
 import { format, subMonths, startOfMonth, isSameMonth } from 'date-fns';
-import { ChartModal } from '@/components/shared/ChartModal'; // Import the modal
+import { ChartModal } from '@/components/shared/ChartModal';
+import { Circle } from "lucide-react";
+import { useOptimizedExpenses, useOptimizedBudgets } from '@/hooks/useOptimizedData';
+import { 
+  LazySpendingBreakdownChart,
+  LazySpendingTrendChart,
+  LazyBudgetVsActualChart,
+  LazyAverageCategorySpendingChart,
+  LazyChartComponent
+} from '@/components/performance/LazyComponents';
+
+// Add missing storage key constants
+const EXPENSES_STORAGE_KEY = 'moneySimpExpenses';
+const BUDGETS_STORAGE_KEY = 'moneySimpBudgets';
+
+// Type imports for chart data
+import type { SpendingDataPoint } from '@/components/insights/SpendingBreakdownChart';
+import type { TrendDataPoint } from '@/components/insights/SpendingTrendChart';
+import type { BudgetActualDataPoint } from '@/components/insights/BudgetVsActualChart';
+import type { AverageSpendingDataPoint } from '@/components/insights/AverageCategorySpendingChart';
+
+// Memoized chart components
+const MemoizedSpendingBreakdown = memo(LazySpendingBreakdownChart);
+const MemoizedSpendingTrend = memo(LazySpendingTrendChart);
+const MemoizedBudgetVsActual = memo(LazyBudgetVsActualChart);
+const MemoizedAverageSpending = memo(LazyAverageCategorySpendingChart);
 
 export default function InsightsPage() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(true);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [userId, setUserId] = useState<string | undefined>();
+
+  // Use optimized data hooks
+  const {
+    data: expenses,
+    isLoading: expensesLoading,
+    error: expensesError
+  } = useOptimizedExpenses(userId);
+
+  // Local state for expenses loaded from localStorage
+  const [localExpenses, setExpenses] = useState<Expense[]>([]);
+
+  // Local state for budgets loaded from localStorage
   const [budgets, setBudgets] = useState<Budget[]>([]);
 
   const [breakdownData, setBreakdownData] = useState<SpendingDataPoint[]>([]);
@@ -28,11 +60,24 @@ export default function InsightsPage() {
   const [modalChartTitle, setModalChartTitle] = useState("");
   const [modalChartContent, setModalChartContent] = useState<React.ReactNode | null>(null);
 
-  const openChartInModal = (title: string, chartComponent: React.ReactNode) => {
+  // Authentication check
+  useEffect(() => {
+    const isLoggedIn = localStorage.getItem('moneySimpLoggedIn');
+    const storedUserId = localStorage.getItem('moneySimpUserId');
+    
+    if (!isLoggedIn) {
+      router.replace('/login');
+    } else {
+      setUserId(storedUserId || 'default-user');
+      setIsAuthLoading(false);
+    }
+  }, [router]);
+
+  const openChartInModal = useCallback((title: string, chartComponent: React.ReactNode) => {
     setModalChartTitle(title);
     setModalChartContent(chartComponent);
     setIsModalOpen(true);
-  };
+  }, []);
 
   const processChartData = useCallback(() => {
     if (expenses.length > 0) {
@@ -154,15 +199,15 @@ export default function InsightsPage() {
     const storedBudgets = localStorage.getItem(BUDGETS_STORAGE_KEY);
     if (storedBudgets) {
       try {
-        const parsedBudgets: Omit<Budget, 'icon' | 'name' | 'spentAmount' >[] = JSON.parse(storedBudgets);
-         const fullBudgets = parsedBudgets.map(b => {
+        const parsedBudgets: Budget[] = JSON.parse(storedBudgets);
+        const fullBudgets = parsedBudgets.map(b => {
           const category = CATEGORIES.find(c => c.id === b.categoryId);
           return {
             ...b,
-            id: (b as any).id || b.categoryId, 
+            id: (b as any).id || b.categoryId,
             name: category?.name || 'Unknown Category',
-            icon: category?.icon || (() => null), 
-            spentAmount: 0, 
+            icon: category?.icon || Circle, // Use a default LucideIcon if missing
+            spentAmount: 0,
           };
         });
         setBudgets(fullBudgets);
@@ -171,17 +216,17 @@ export default function InsightsPage() {
         setBudgets([]);
       }
     }
-    setIsLoading(false);
+    setIsAuthLoading(false);
   }, [router]);
 
   useEffect(() => {
-    if (!isLoading) {
+    if (!isAuthLoading) {
       processChartData();
     }
-  }, [isLoading, processChartData]);
+  }, [isAuthLoading, processChartData]);
 
 
-  if (isLoading) {
+  if (isAuthLoading) {
     return (
       <div className="container mx-auto py-8 flex justify-center items-center min-h-[calc(100vh-10rem)]">
         <p>Loading insights...</p>
@@ -190,26 +235,26 @@ export default function InsightsPage() {
   }
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto py-8 px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-foreground">Spending Insights</h1>
         <p className="text-muted-foreground">Understand your financial habits with visual data. Click on charts to enlarge.</p>
       </div>
 
       <div className="grid gap-8 md:grid-cols-1 lg:grid-cols-2 mb-8">
-        <div className="cursor-pointer hover:shadow-xl transition-shadow rounded-lg" onClick={() => openChartInModal("Spending Breakdown (All Time)", <SpendingBreakdownChart data={breakdownData} />)}>
-          <SpendingBreakdownChart data={breakdownData} />
+        <div className="cursor-pointer hover:shadow-xl transition-shadow rounded-lg" onClick={() => openChartInModal("Spending Breakdown (All Time)", <LazySpendingBreakdownChart data={breakdownData} />)}>
+          <LazySpendingBreakdownChart data={breakdownData} />
         </div>
-        <div className="cursor-pointer hover:shadow-xl transition-shadow rounded-lg" onClick={() => openChartInModal("Monthly Spending Trend (Last 6 Months)", <SpendingTrendChart data={trendData} />)}>
-          <SpendingTrendChart data={trendData} />
+        <div className="cursor-pointer hover:shadow-xl transition-shadow rounded-lg" onClick={() => openChartInModal("Monthly Spending Trend (Last 6 Months)", <LazySpendingTrendChart data={trendData} />)}>
+          <LazySpendingTrendChart data={trendData} />
         </div>
       </div>
        <div className="grid gap-8 md:grid-cols-1 lg:grid-cols-2">
-        <div className="cursor-pointer hover:shadow-xl transition-shadow rounded-lg" onClick={() => openChartInModal(`Budget vs. Actual Spending (${format(new Date(), 'MMMM yyyy')})`, <BudgetVsActualChart data={budgetActualData} />)}>
-          <BudgetVsActualChart data={budgetActualData} />
+        <div className="cursor-pointer hover:shadow-xl transition-shadow rounded-lg" onClick={() => openChartInModal(`Budget vs. Actual Spending (${format(new Date(), 'MMMM yyyy')})`, <LazyBudgetVsActualChart data={budgetActualData} />)}>
+          <MemoizedBudgetVsActual data={budgetActualData} />
         </div>
-        <div className="cursor-pointer hover:shadow-xl transition-shadow rounded-lg" onClick={() => openChartInModal("Average Monthly Spending per Category", <AverageCategorySpendingChart data={averageSpendingData} />)}>
-          <AverageCategorySpendingChart data={averageSpendingData} />
+        <div className="cursor-pointer hover:shadow-xl transition-shadow rounded-lg" onClick={() => openChartInModal("Average Monthly Spending per Category", <LazyAverageCategorySpendingChart data={averageSpendingData} />)}>
+          <LazyAverageCategorySpendingChart data={averageSpendingData} />
         </div>
       </div>
 

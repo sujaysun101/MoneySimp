@@ -34,3 +34,89 @@ export interface Goal {
   createdAt: Date;
   notes?: string;
 }
+
+export interface Subscription {
+  id: string;
+  name: string;
+  amount: number;
+  frequency: 'monthly' | 'yearly' | 'weekly' | 'daily';
+  nextPaymentDate: Date;
+  categoryId: string;
+  isActive: boolean;
+  detectedFromBank: boolean;
+  reminderEnabled: boolean;
+  reminderDays: number; // Days before due date to remind
+  lastPaymentDate?: Date;
+  notes?: string;
+  provider?: string; // e.g., Netflix, Spotify, etc.
+  cancellationUrl?: string; // URL to cancel subscription
+}
+
+export interface BankAccount {
+  id: string;
+  institutionId: string;
+  institutionName: string;
+  accountId: string; // Yodlee account id
+  name: string;
+  officialName?: string;
+  type: 'checking' | 'savings' | 'credit' | 'loan' | 'investment' | 'other';
+  subtype?: string;
+  balance: {
+    available?: number;
+    current: number;
+    limit?: number;
+  };
+  mask: string; // Last 4 digits
+  isActive: boolean;
+  lastSynced: Date;
+  currency: string;
+  provider: 'yodlee'; // Bank integration provider
+  providerAccountId?: string; // Provider-specific account identifier
+  accessToken?: string; // For Yodlee or similar providers
+}
+
+export interface Transaction {
+  id: string;
+  accountId: string;
+  amount: number;
+  date: Date;
+  description: string;
+  merchantName?: string;
+  categoryId: string;
+  category: string[];
+  isRecurring?: boolean;
+  confidence?: number; // For recurring detection
+  pending: boolean;
+  location?: {
+    address?: string;
+    city?: string;
+    region?: string;
+    postalCode?: string;
+    country?: string;
+    lat?: number;
+    lon?: number;
+  };
+  paymentMeta?: {
+    referenceNumber?: string;
+    ppdId?: string;
+    payee?: string;
+    byOrderOf?: string;
+    payer?: string;
+    paymentMethod?: string;
+    paymentProcessor?: string;
+    reason?: string;
+  };
+}
+
+export interface EncryptedData {
+  data: string; // encrypted data
+  iv: string; // initialization vector
+  timestamp: number;
+}
+
+export interface SyncStatus {
+  isOnline: boolean;
+  lastSync: Date | null;
+  pendingChanges: number;
+  syncInProgress: boolean;
+}

@@ -1,4 +1,4 @@
-// src/app/page.tsx - This is now the public landing page
+// src/app/page.tsx - Smart homepage with auth-based routing
 "use client"; // Ensure this is the very first line
 
 import { Button } from "@/components/ui/button";
@@ -6,13 +6,58 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { APP_NAME } from "@/lib/constants";
 import { Mail, TrendingUp, DollarSign, BarChart3 } from "lucide-react";
-import Image from 'next/image';
+import Image from "next/legacy/image";
 import Link from "next/link";
-import React from 'react'; // Import React for FormEvent type
+import React, { useEffect, useState } from 'react';
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { auth } from "@/lib/firebase";
+import { onAuthStateChanged, User } from "firebase/auth";
+import { useRouter } from "next/navigation";
 
-export default function LandingPage() {
+export default function HomePage() {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!auth) return;
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user);
+      setLoading(false);
+      
+      // Redirect authenticated users to dashboard
+      if (user) {
+        console.log('User authenticated, redirecting to dashboard:', user.email);
+        router.push('/dashboard');
+      } else {
+        console.log('No authenticated user, showing landing page');
+      }
+    });
+
+    return () => unsubscribe();
+  }, [router]);
+
+  // Show loading state while checking auth
+  if (loading) {
+    return (
+      <div className="flex flex-col min-h-screen bg-background">
+        <div className="flex-grow flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If user is authenticated, they'll be redirected to dashboard
+  // This renders the landing page for unauthenticated users
+  return <LandingPage />;
+}
+
+function LandingPage() {
   const handleWaitlistSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     // Here you would typically send the email to your backend or a service
@@ -30,6 +75,9 @@ export default function LandingPage() {
         <nav className="space-x-4">
           <Link href="/login" passHref>
             <Button variant="outline">Login</Button>
+          </Link>
+          <Link href="/dashboard" passHref>
+            <Button variant="secondary">Go to App</Button>
           </Link>
           <a
             href="https://calendly.com/sujay9sundar/30min"
