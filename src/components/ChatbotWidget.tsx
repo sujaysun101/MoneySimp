@@ -254,9 +254,11 @@ export const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ expenses = [], sub
   if (!open) {
     return (
       <button
-        className="fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg w-14 h-14 flex items-center justify-center text-2xl z-50"
+        className="fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg w-14 h-14 flex items-center justify-center text-2xl z-50 min-h-[44px] min-w-[44px] touch-manipulation"
         onClick={() => setOpen(true)}
+        onTouchStart={() => setOpen(true)}
         aria-label="Open chatbot"
+        style={{ WebkitTapHighlightColor: 'transparent' }}
       >
         💬
       </button>
@@ -272,14 +274,36 @@ export const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ expenses = [], sub
           <div className="flex items-center space-x-1">
             <button
               onClick={handleVoice}
-              className={`p-1 rounded ${isRecording ? 'bg-red-500 text-white animate-pulse' : voiceMode ? 'bg-blue-500 text-white' : 'text-gray-500 hover:text-blue-500'}`}
+              className={`p-2 rounded min-h-[44px] min-w-[44px] touch-manipulation ${isRecording ? 'bg-red-500 text-white animate-pulse' : voiceMode ? 'bg-blue-500 text-white' : 'text-gray-500 hover:text-blue-500'}`}
               title={isRecording ? "Stop Recording" : "Start Recording"}
+              style={{ WebkitTapHighlightColor: 'transparent' }}
             >
               🎤
             </button>
-            <button onClick={() => setMinimized(!minimized)} className="text-gray-500 hover:text-yellow-500" title="Minimize">➖</button>
-            <button onClick={() => setMaximized(!maximized)} className="text-gray-500 hover:text-green-500" title={maximized ? "Restore" : "Maximize"}>{maximized ? "🗗" : "🗖"}</button>
-            <button onClick={() => setOpen(false)} className="text-gray-500 hover:text-red-500 text-xl" title="Close">✕</button>
+            <button 
+              onClick={() => setMinimized(!minimized)} 
+              className="text-gray-500 hover:text-yellow-500 p-2 min-h-[44px] min-w-[44px] touch-manipulation" 
+              title="Minimize"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              ➖
+            </button>
+            <button 
+              onClick={() => setMaximized(!maximized)} 
+              className="text-gray-500 hover:text-green-500 p-2 min-h-[44px] min-w-[44px] touch-manipulation" 
+              title={maximized ? "Restore" : "Maximize"}
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              {maximized ? "🗗" : "🗖"}
+            </button>
+            <button 
+              onClick={() => setOpen(false)} 
+              className="text-gray-500 hover:text-red-500 text-xl p-2 min-h-[44px] min-w-[44px] touch-manipulation" 
+              title="Close"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              ✕
+            </button>
           </div>
         </div>
         {!minimized && <>
@@ -356,7 +380,13 @@ export const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ expenses = [], sub
                 {attachments.map((att, idx) => (
                   <div key={idx} className="bg-gray-100 dark:bg-gray-800 rounded px-2 py-1 text-xs flex items-center">
                     📎 {att.name}
-                    <button onClick={() => handleRemoveAttachment(idx)} className="ml-2 text-red-500">✕</button>
+                    <button 
+                      onClick={() => handleRemoveAttachment(idx)} 
+                      className="ml-2 text-red-500 p-1 min-h-[44px] min-w-[44px] touch-manipulation"
+                      style={{ WebkitTapHighlightColor: 'transparent' }}
+                    >
+                      ✕
+                    </button>
                   </div>
                 ))}
               </div>
@@ -365,22 +395,38 @@ export const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ expenses = [], sub
           {/* Input */}
           <div className="flex items-center border-t dark:border-gray-700 px-2 py-2">
             <input type="file" ref={fileInputRef} onChange={handleFileUpload} multiple accept="image/*,audio/*,video/*,.pdf,.doc,.docx,.txt" className="hidden" title="Attach files" />
-            <button onClick={() => fileInputRef.current?.click()} className="text-gray-500 hover:text-blue-500 p-1 mr-2" title="Attach Files">📎</button>
+            <button 
+              onClick={() => fileInputRef.current?.click()} 
+              className="text-gray-500 hover:text-blue-500 p-2 mr-2 min-h-[44px] min-w-[44px] touch-manipulation" 
+              title="Attach Files"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              📎
+            </button>
             {voiceMode && (
-              <button onClick={() => setIsRecording(r => !r)} className={`p-1 mr-2 rounded ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'text-gray-500 hover:text-blue-500'}`} title={isRecording ? "Stop Recording" : "Start Recording"}>🎤</button>
+              <button 
+                onClick={() => setIsRecording(r => !r)} 
+                className={`p-2 mr-2 rounded min-h-[44px] min-w-[44px] touch-manipulation ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'text-gray-500 hover:text-blue-500'}`} 
+                title={isRecording ? "Stop Recording" : "Start Recording"}
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                🎤
+              </button>
             )}
             <input
-              className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-1 mr-2 bg-white dark:bg-gray-900 text-black dark:text-white focus:outline-none"
+              className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 mr-2 bg-white dark:bg-gray-900 text-black dark:text-white focus:outline-none text-base"
               placeholder="Type your question... 💭"
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter") handleSend(); }}
               disabled={loading}
+              style={{ fontSize: '16px' }} // Prevent zoom on iOS
             />
             <button
-              className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-3 py-1 disabled:opacity-50"
+              className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-3 py-2 disabled:opacity-50 min-h-[44px] touch-manipulation"
               onClick={handleSend}
               disabled={loading || (!input.trim() && attachments.length === 0)}
+              style={{ WebkitTapHighlightColor: 'transparent' }}
             >
               📤
             </button>

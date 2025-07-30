@@ -167,7 +167,7 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent className="grid gap-4 sm:grid-cols-2">
                 <Link href="/expenses" passHref>
-                  <Button variant="outline" className="w-full justify-start text-left p-4 h-auto min-w-0">
+                  <Button variant="outline" className="w-full justify-start text-left p-4 h-auto min-w-0 min-h-[44px] touch-manipulation" style={{ WebkitTapHighlightColor: 'transparent' }}>
                     <PlusCircle className="mr-3 h-5 w-5 text-primary flex-shrink-0" />
                     <div className="min-w-0">
                       <p className="font-semibold truncate">Add New Expense</p>
@@ -176,7 +176,7 @@ export default function DashboardPage() {
                   </Button>
                 </Link>
                 <Link href="/budgets" passHref>
-                   <Button variant="outline" className="w-full justify-start text-left p-4 h-auto min-w-0">
+                   <Button variant="outline" className="w-full justify-start text-left p-4 h-auto min-w-0 min-h-[44px] touch-manipulation" style={{ WebkitTapHighlightColor: 'transparent' }}>
                     <TrendingUp className="mr-3 h-5 w-5 text-primary flex-shrink-0" />
                      <div className="min-w-0">
                       <p className="font-semibold truncate">Set/View Budgets</p>
@@ -185,7 +185,7 @@ export default function DashboardPage() {
                   </Button>
                 </Link>
                 <Link href="/subscriptions" passHref>
-                  <Button variant="outline" className="w-full justify-start text-left p-4 h-auto min-w-0">
+                  <Button variant="outline" className="w-full justify-start text-left p-4 h-auto min-w-0 min-h-[44px] touch-manipulation" style={{ WebkitTapHighlightColor: 'transparent' }}>
                     <RefreshCw className="mr-3 h-5 w-5 text-primary flex-shrink-0" />
                     <div className="min-w-0">
                       <p className="font-semibold truncate">Manage Subscriptions</p>
@@ -194,7 +194,7 @@ export default function DashboardPage() {
                   </Button>
                 </Link>
                 <Link href="/goals" passHref>
-                  <Button variant="outline" className="w-full justify-start text-left p-4 h-auto min-w-0">
+                  <Button variant="outline" className="w-full justify-start text-left p-4 h-auto min-w-0 min-h-[44px] touch-manipulation" style={{ WebkitTapHighlightColor: 'transparent' }}>
                     <Target className="mr-3 h-5 w-5 text-primary flex-shrink-0" />
                     <div className="min-w-0">
                       <p className="font-semibold truncate">Financial Goals</p>
@@ -233,7 +233,7 @@ export default function DashboardPage() {
                <CardContent className="pt-4 flex flex-col items-center text-center min-w-0">
                    <p className="text-muted-foreground mb-4 truncate">More detailed charts are available in the Insights section.</p>
                   <Link href="/insights" passHref>
-                      <Button>Go to Insights</Button>
+                      <Button className="min-h-[44px] touch-manipulation" style={{ WebkitTapHighlightColor: 'transparent' }}>Go to Insights</Button>
                   </Link>
               </CardContent>
             </Card>

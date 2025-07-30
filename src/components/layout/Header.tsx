@@ -1,11 +1,16 @@
 // src/components/layout/Header.tsx
 "use client"
-import React, { useEffect, useState }from 'react';
-import { SidebarTrigger } from '@/components/ui/sidebar';
+import React, { useEffect, useState } from 'react';
+import { Menu } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { APP_NAME, ALL_NAV_ITEMS } from '@/lib/constants'; // Use ALL_NAV_ITEMS
 import { usePathname } from 'next/navigation';
 
-export function Header() {
+interface HeaderProps {
+  onMenuClick?: () => void;
+}
+
+export function Header({ onMenuClick }: HeaderProps) {
   const pathname = usePathname();
   const [pageTitle, setPageTitle] = useState(APP_NAME);
 
@@ -31,7 +36,15 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-md sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
-      <SidebarTrigger className="md:hidden" />
+      <Button
+        variant="ghost"
+        size="icon"
+        className="md:hidden touch-target-44"
+        onClick={onMenuClick}
+        aria-label="Open navigation menu"
+      >
+        <Menu className="h-6 w-6" />
+      </Button>
       <div className="flex items-center gap-2 ml-8 mt-3">
         {currentNavItem && currentNavItem.icon && <currentNavItem.icon className="h-6 w-6 text-primary" />}
         <h1 className="text-xl font-semibold text-foreground ml-3">{pageTitle}</h1>
