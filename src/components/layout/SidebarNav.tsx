@@ -3,15 +3,9 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { PiggyBank, LogOut } from 'lucide-react';
-import {
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-} from '@/components/ui/sidebar';
 import { APP_NAME, AUTH_NAV_ITEMS, UNAUTH_NAV_ITEMS, type NavItem } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import React, { useState, useEffect } from 'react';
-import { useSidebar } from '@/components/ui/sidebar'; 
 import { Button } from '../ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { auth } from '@/lib/firebase'; 
@@ -22,7 +16,6 @@ export function SidebarNav() {
   const router = useRouter();
   const { toast } = useToast();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const { setOpenMobile, isMobile } = useSidebar(); 
 
   useEffect(() => {
     if (!auth) return;
@@ -33,8 +26,10 @@ export function SidebarNav() {
   }, []);
 
   const handleNavItemClick = () => {
-    if (isMobile) {
-      setOpenMobile(false); 
+    // Close the mobile sidebar when navigation item is clicked
+    if (typeof window !== 'undefined') {
+      const event = new CustomEvent('closeSidebar');
+      window.dispatchEvent(event);
     }
   };
   
@@ -48,7 +43,7 @@ export function SidebarNav() {
       localStorage.removeItem('moneySimpLoggedIn');
       localStorage.removeItem('moneySimpUserEmail');
       toast({ title: "Logged Out", description: "You have been successfully logged out." });
-      if (isMobile) setOpenMobile(false);
+      handleNavItemClick(); // Close mobile menu if open
       router.push('/login'); 
     } catch (error) {
       console.error("Logout failed:", error);
@@ -65,78 +60,107 @@ export function SidebarNav() {
   };
 
   return (
-    <>
-      <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6 sticky top-0 bg-sidebar z-10">
-        <Link href={isAuthenticated ? "/dashboard" : "/"} className="flex items-center gap-2 font-semibold text-sidebar-foreground" onClick={handleNavItemClick}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-piggy-bank"><path d="M10 15.5V14a2 2 0 1 0-4 0v1.5"/><path d="M8 15.5v4.5H6a2 2 0 0 1-2-2V12a2 2 0 0 1 2-2h2.4a2 2 0 0 1 1.6.8l2.1 2.9c.3.4.9.6 1.4.6H16a2 2 0 0 0 2-2V9a2 2 0 1 0-4 0v1.5a2 2 0 1 1-4 0V9a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2.5c0 .8.4 1.5.9 1.9L5 15"/><path d="M2 9v1c0 1.1.9 2 2 2h1"/></svg>
+    <nav className="flex flex-col h-full">
+      {/* Logo/Brand */}
+      <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
+        <Link 
+          href={isAuthenticated ? "/dashboard" : "/"} 
+          className="flex items-center gap-2 font-semibold text-sidebar-foreground" 
+          onClick={handleNavItemClick}
+        >
+          <PiggyBank className="h-6 w-6 text-primary" />
           <span>{APP_NAME}</span>
         </Link>
       </div>
-      <div className="flex-1 overflow-auto py-2">
-        <SidebarMenu>
-          {currentNavItems.map((item) => (
-            <SidebarMenuItem key={item.label}>
-              {item.isButton && !item.isExternal ? ( // Client-side action button
-                (<SidebarMenuButton
-                  variant="default"
-                  size="default"
-                  className="justify-start w-full hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                  tooltip={item.label}
+      
+      {/* Navigation Items */}
+      <div className="flex-1 py-4">
+        <div className="space-y-1 px-3">
+          {currentNavItems.map((item) => {
+            const Icon = item.icon;
+            const isActiveItem = isActive(item);
+            
+            if (item.isButton && !item.isExternal) {
+              // Client-side action button
+              return (
+                <button
+                  key={item.label}
                   onClick={() => {
                     if (item.action) item.action();
                     handleNavItemClick(); 
                   }}
+                  className={`
+                    flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 w-full text-left
+                    text-muted-foreground hover:text-foreground hover:bg-muted
+                    min-h-[44px] touch-manipulation
+                  `}
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
                 >
-                  <item.icon className="h-5 w-5 text-sidebar-foreground/70 group-hover/menu-button:text-sidebar-accent-foreground" />
+                  <Icon className="h-5 w-5 flex-shrink-0" />
                   <span className="truncate">{item.label}</span>
-                </SidebarMenuButton>)
-              ) : item.isExternal ? ( // External link
-                (<SidebarMenuButton
-                  asChild
-                  variant="default"
-                  size="default"
-                  className="justify-start w-full hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                  tooltip={item.label}
+                </button>
+              );
+            } else if (item.isExternal) {
+              // External link
+              return (
+                <a
+                  key={item.label}
+                  href={item.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={handleNavItemClick}
+                  className={`
+                    flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200
+                    text-muted-foreground hover:text-foreground hover:bg-muted
+                    min-h-[44px] touch-manipulation
+                  `}
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
                 >
-                  <a href={item.href} target="_blank" rel="noopener noreferrer" onClick={handleNavItemClick}>
-                    <item.icon className="h-5 w-5 text-sidebar-foreground/70 group-hover/menu-button:text-sidebar-accent-foreground" />
-                    <span className="truncate">{item.label}</span>
-                  </a>
-                </SidebarMenuButton>)
-              ) : ( // Internal Next.js Link
-                (<Link href={item.href}>
-                  <SidebarMenuButton
-                    asChild
-                    variant="default"
-                    size="default"
-                    className={cn(
-                      "justify-start w-full",
-                      isActive(item) ?
-                        "bg-sidebar-accent text-sidebar-accent-foreground font-semibold" :
-                        "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                    )}
-                    tooltip={item.label}
-                    isActive={isActive(item)}
-                  >
-                    <span onClick={handleNavItemClick} className="flex items-center">
-                      <item.icon className={cn("h-5 w-5 ml-6", isActive(item) ? "text-primary" : "text-sidebar-foreground/70 group-hover/menu-button:text-sidebar-accent-foreground")} />
-                      <span className="truncate ml-2">{item.label}</span>
-                    </span>
-                  </SidebarMenuButton>
-                </Link>)
-              )}
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
+                  <Icon className="h-5 w-5 flex-shrink-0" />
+                  <span className="truncate">{item.label}</span>
+                </a>
+              );
+            } else {
+              // Internal Next.js Link
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  onClick={handleNavItemClick}
+                  className={`
+                    flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200
+                    ${isActiveItem 
+                      ? 'bg-primary text-primary-foreground shadow-sm' 
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    }
+                    min-h-[44px] touch-manipulation
+                  `}
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                >
+                  <Icon className={cn("h-5 w-5 flex-shrink-0", isActiveItem ? "text-primary-foreground" : "")} />
+                  <span className="truncate">{item.label}</span>
+                </Link>
+              );
+            }
+          })}
+        </div>
       </div>
+
+      {/* Logout Button */}
       {isAuthenticated && (
-        <div className="mt-auto p-2 border-t border-sidebar-border">
-          <Button variant="ghost" className="w-full justify-start" onClick={handleLogout}>
+        <div className="border-t pt-4 px-3 pb-4">
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start min-h-[44px] touch-manipulation" 
+            onClick={handleLogout}
+            style={{ WebkitTapHighlightColor: 'transparent' }}
+          >
             <LogOut className="mr-2 h-5 w-5" />
             Logout
           </Button>
         </div>
       )}
-    </>
+    </nav>
   );
 }
+

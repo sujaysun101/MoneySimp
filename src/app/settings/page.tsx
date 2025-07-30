@@ -88,7 +88,7 @@ export default function SettingsPage() {
 				</Button>
 				<FeedbackForm open={feedbackOpen} onOpenChange={setFeedbackOpen} />
 				<div className="mt-6 p-4 bg-muted rounded">
-					<h3 className="text-base font-bold mb-2">V 0.1.0</h3>
+					<h3 className="text-base font-bold mb-2">V 0.1.1</h3>
 					<ul className="list-disc pl-6 text-sm text-muted-foreground">
 						<li>Connect and manage all your financial accounts in one place</li>
 						<li>Track your spending and set financial goals with smart insights</li>
