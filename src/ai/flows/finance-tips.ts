@@ -1,5 +1,4 @@
 
-'use server';
 /**
  * @fileOverview This file defines a Genkit flow for generating personalized financial tips with rate limiting and caching.
  *
@@ -8,7 +7,7 @@
  * - FinanceTipOutput - The return type for the generateFinanceTip function.
  */
 
-import {ai} from '@/ai/genkit';
+import {getAi, geminiConfigured} from '@/ai/genkit';
 import {z} from 'genkit';
 
 // Add caching and rate limiting
@@ -98,32 +97,38 @@ function getFallbackTip(requestType?: string): any {
   return tips[Math.floor(Math.random() * tips.length)];
 }
 
-const FinanceTipInputSchema = z.object({
+const money = z.number().finite().min(-1_000_000).max(1_000_000);
+export const FinanceTipInputSchema = z.object({
   spendingHabits: z
     .string()
+    .min(1)
+    .max(4000)
     .describe(
       'A detailed description of the user spending habits, including categories, amounts, and frequency.'
     ),
   recentTransactions: z.array(z.object({
-    amount: z.number(),
-    category: z.string(),
-    date: z.string(),
-    description: z.string(),
-  })).optional(),
-  currentMonthSpending: z.record(z.number()).optional(),
-  previousMonthSpending: z.record(z.number()).optional(),
+    amount: money,
+    category: z.string().max(80),
+    date: z.string().max(40),
+    description: z.string().max(200),
+  })).max(30).optional(),
+  currentMonthSpending: z.record(z.string().max(80), money).optional(),
+  previousMonthSpending: z.record(z.string().max(80), money).optional(),
   subscriptions: z.array(z.object({
-    name: z.string(),
-    amount: z.number(),
-    frequency: z.string(),
-  })).optional(),
+    name: z.string().max(120),
+    amount: money,
+    frequency: z.string().max(40),
+  })).max(30).optional(),
   goals: z.array(z.object({
-    name: z.string(),
-    target: z.number(),
-    saved: z.number(),
-  })).optional(),
+    name: z.string().max(120),
+    target: money,
+    saved: money,
+  })).max(30).optional(),
   requestType: z.enum(['general', 'anomaly', 'cost_cutting', 'forecast', 'subscription_optimization']).optional(),
-});
+}).refine((value) => {
+  const spendingKeys = Object.keys(value.currentMonthSpending || {}).length + Object.keys(value.previousMonthSpending || {}).length;
+  return spendingKeys <= 80;
+}, { message: 'Too many spending categories.' });
 export type FinanceTipInput = z.infer<typeof FinanceTipInputSchema>;
 
 const FinanceTipOutputSchema = z.object({
@@ -134,69 +139,109 @@ const FinanceTipOutputSchema = z.object({
 });
 export type FinanceTipOutput = z.infer<typeof FinanceTipOutputSchema>;
 
-export async function generateFinanceTip(input: FinanceTipInput): Promise<FinanceTipOutput> {
-  const cacheKey = getCacheKey(input);
-  
-  // Check cache first
+export type FinanceTipResult = FinanceTipOutput & {
+  sample?: boolean;
+  label?: string;
+};
+
+const TIP_TYPES = ['general', 'anomaly', 'cost_cutting', 'forecast', 'subscription_optimization'] as const;
+const PRIORITIES = ['low', 'medium', 'high'] as const;
+
+function normalizeTip(raw: { tip?: string; tipType?: string; priority?: string; actionItems?: string[] }): FinanceTipOutput {
+  const mappedType = raw.tipType === 'cost_saving' ? 'cost_cutting' : raw.tipType;
+  return {
+    tip: typeof raw.tip === 'string' && raw.tip.trim() ? raw.tip : 'Track this week of spending before changing a budget.',
+    tipType: TIP_TYPES.includes(mappedType as FinanceTipOutput['tipType']) ? mappedType as FinanceTipOutput['tipType'] : 'general',
+    priority: PRIORITIES.includes(raw.priority as FinanceTipOutput['priority']) ? raw.priority as FinanceTipOutput['priority'] : 'medium',
+    actionItems: Array.isArray(raw.actionItems) ? raw.actionItems.map(String).slice(0, 6) : [],
+  };
+}
+
+function sampleTip(requestType: string | undefined, label: string): FinanceTipResult {
+  return { ...normalizeTip(getFallbackTip(requestType)), sample: true, label };
+}
+
+export async function generateFinanceTip(input: FinanceTipInput): Promise<FinanceTipResult> {
+  const parsed = FinanceTipInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return sampleTip(undefined, 'Sample response — the spending summary was not valid for Gemini.');
+  }
+  const safeInput = parsed.data;
+  const cacheKey = getCacheKey(safeInput);
+
   const cachedTip = getFromCache(cacheKey);
   if (cachedTip) {
-    console.log('Returning cached finance tip');
     return cachedTip;
   }
-  
-  // Check rate limiting
-  if (isRateLimited()) {
-    console.log('Rate limited, returning fallback tip');
-    return getFallbackTip(input.requestType);
+
+  if (!geminiConfigured()) {
+    return sampleTip(safeInput.requestType, 'Sample response — set GEMINI_API_KEY to use Gemini.');
   }
-  
+
+  if (isRateLimited()) {
+    return { ...normalizeTip(getFallbackTip(safeInput.requestType)), label: 'Showing a saved tip because this minute is rate limited.' };
+  }
+
   try {
     addRequestTimestamp();
-    const result = await generateFinanceTipFlow(input);
-    
-    // Cache the result
+    const flow = getFinanceTipFlow();
+    if (!flow) {
+      return sampleTip(safeInput.requestType, 'Sample response — set GEMINI_API_KEY to use Gemini.');
+    }
+    const result = normalizeTip(await flow(safeInput));
     saveToCache(cacheKey, result);
     return result;
-    
-  } catch (error: any) {
-    console.log('AI request failed, using fallback:', error.message);
-    return getFallbackTip(input.requestType);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'unknown error';
+    console.log('AI request failed, using fallback:', message);
+    return sampleTip(safeInput.requestType, 'Sample response — Gemini did not return a tip.');
   }
 }
 
-const prompt = ai.definePrompt({
-  name: 'financeTipPrompt',
-  input: {schema: FinanceTipInputSchema},
-  output: {schema: FinanceTipOutputSchema},
-  prompt: `You are a personal finance advisor. Based on the user's spending habits and financial data, provide one actionable and personalized financial tip.
+let financeTipFlow: ((input: FinanceTipInput) => Promise<FinanceTipOutput>) | null | undefined;
+
+function getFinanceTipFlow() {
+  if (financeTipFlow !== undefined) return financeTipFlow;
+  const ai = getAi();
+  if (!ai) {
+    financeTipFlow = null;
+    return financeTipFlow;
+  }
+  const prompt = ai.definePrompt({
+    name: 'financeTipPrompt',
+    input: {schema: FinanceTipInputSchema},
+    output: {schema: FinanceTipOutputSchema},
+    prompt: `You are a personal finance advisor. Based on the user's spending habits and financial data, provide one actionable and personalized financial tip.
 
 Spending Habits: {{{spendingHabits}}}
 {{#if currentMonthSpending}}Current Month Spending: {{{currentMonthSpending}}}{{/if}}
 {{#if subscriptions}}Subscriptions: {{{subscriptions}}}{{/if}}
 {{#if goals}}Financial Goals: {{{goals}}}{{/if}}
 
-Provide a specific, actionable tip with priority level and concrete action steps. Focus on the most impactful recommendation based on their data.`,
-});
+Provide a specific, actionable tip with priority level and concrete action steps. Focus on the most impactful recommendation based on their data. Keep the tip under 80 words.`,
+  });
 
-const generateFinanceTipFlow = ai.defineFlow(
-  {
-    name: 'generateFinanceTipFlow',
-    inputSchema: FinanceTipInputSchema,
-    outputSchema: FinanceTipOutputSchema,
-  },
-  async input => {
-    try {
-      const {output} = await prompt(input);
-      if (!output) {
-        return getFallbackTip(input.requestType);
+  financeTipFlow = ai.defineFlow(
+    {
+      name: 'generateFinanceTipFlow',
+      inputSchema: FinanceTipInputSchema,
+      outputSchema: FinanceTipOutputSchema,
+    },
+    async input => {
+      try {
+        const {output} = await prompt(input, { config: { maxOutputTokens: 512 } });
+        if (!output) {
+          return normalizeTip(getFallbackTip(input.requestType));
+        }
+        return normalizeTip(output);
+      } catch (error) {
+        console.error('Flow execution failed:', error);
+        return normalizeTip(getFallbackTip(input.requestType));
       }
-      return output;
-    } catch (error) {
-      console.error('Flow execution failed:', error);
-      return getFallbackTip(input.requestType);
     }
-  }
-);
+  );
+  return financeTipFlow;
+}
 
 // Explicitly export only types and the main async function
 export {};

@@ -13,6 +13,7 @@ import type { Expense } from '@/lib/types';
 import { isSameMonth } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { auth } from '@/lib/firebase';
+import { PageSkeleton } from '@/components/shared/PageSkeleton';
 
 const calculateSpentAmountForCurrentMonth = (categoryId: string, expenses: Expense[] = []): number => {
   const today = new Date();
@@ -215,13 +216,7 @@ export default function BudgetsPage() {
   }, [userExpenses, isLoading]); // Added isLoading to dependencies
 
 
-  if (isLoading) {
-    return (
-      <div className="container mx-auto py-8 flex justify-center items-center min-h-[calc(100vh-10rem)]">
-        <p>Loading budgets...</p>
-      </div>
-    );
-  }
+  if (isLoading) return <PageSkeleton />;
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16">

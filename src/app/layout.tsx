@@ -7,19 +7,25 @@ import { Toaster } from "@/components/ui/toaster";
 import { APP_NAME } from '@/lib/constants';
 import React, { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { auth } from '@/lib/firebase'; // Import Firebase auth
+import { auth } from '@/lib/firebase';
 import { onAuthStateChanged, type User } from 'firebase/auth';
-import { X, Menu } from 'lucide-react';
+import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SettingsProvider, useSettings } from '@/components/SettingsContext';
 import { ChatbotWidget } from '@/components/ChatbotWidget';
 import { SidebarNav } from '@/components/layout/SidebarNav';
 import { Header } from '@/components/layout/Header';
+import { PageSkeleton } from '@/components/shared/PageSkeleton';
 
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
 });
+
+function isPublicPath(pathname: string | null) {
+  if (!pathname) return false;
+  return pathname === '/' || pathname === '/login' || pathname.startsWith('/sign-in') || pathname.startsWith('/sign-up');
+}
 
 export default function RootLayout({
   children,
@@ -29,7 +35,8 @@ export default function RootLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
-  const [isLoadingAuth, setIsLoadingAuth] = useState(true); // Start true, then set to false after first auth check
+  const [demoMode, setDemoMode] = useState(false);
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -42,54 +49,73 @@ export default function RootLayout({
   }, []);
 
   useEffect(() => {
-    if (!auth) return;
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const demo = localStorage.getItem('moneySimpDemoMode') === 'true';
+    if (demo) setDemoMode(true);
+
+    if (!auth) {
+      setIsLoadingAuth(false);
+      return;
+    }
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setFirebaseUser(user);
-      setIsLoadingAuth(false); // Auth state determined
-      if (user) {
+      setIsLoadingAuth(false);
+      const stillDemo = localStorage.getItem('moneySimpDemoMode') === 'true';
+      if (user && !stillDemo) {
         localStorage.setItem('moneySimpLoggedIn', 'true');
         localStorage.setItem('moneySimpUserEmail', user.email || '');
-      } else {
+        localStorage.setItem('moneySimpUserId', user.uid);
+        try {
+          const idToken = await user.getIdToken();
+          await fetch('/api/session', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${idToken}` },
+          });
+        } catch (error) {
+          console.error('Could not establish server session', error);
+        }
+      } else if (!user && !stillDemo) {
         localStorage.removeItem('moneySimpLoggedIn');
         localStorage.removeItem('moneySimpUserEmail');
+        localStorage.removeItem('moneySimpUserId');
       }
     });
-    return () => unsubscribe(); // Cleanup subscription
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
-    if (isLoadingAuth) return; // Don't redirect until auth state is known
+    const demo = localStorage.getItem('moneySimpDemoMode') === 'true';
+    if (demo !== demoMode) setDemoMode(demo);
+    if (isLoadingAuth) return;
 
-    const isPublicPath = pathname === '/' || (pathname?.startsWith('/login') ?? false);
-
-    if (firebaseUser && isPublicPath) {
-      // If logged in and on a public path, redirect to dashboard
+    const publicPath = isPublicPath(pathname);
+    const authed = Boolean(firebaseUser) || demo;
+    if (authed && publicPath) {
       router.replace('/dashboard');
-    } else if (!firebaseUser && !isPublicPath) {
-      // If not logged in and on a protected path, redirect to login
+    } else if (!authed && !publicPath) {
       router.replace('/login');
     }
-  }, [firebaseUser, pathname, router, isLoadingAuth]);
+  }, [firebaseUser, demoMode, pathname, router, isLoadingAuth]);
 
   // Helper to apply theme globally
   function SettingsEffect() {
     const { settings } = useSettings();
     useEffect(() => {
       let appliedTheme = settings.theme;
-      if (settings.theme === 'default') {
+      if (settings.theme === 'default' || settings.theme === 'system') {
         const hour = new Date().getHours();
         appliedTheme = hour >= 9 && hour < 16 ? 'light' : 'dark';
       }
+      if (appliedTheme !== 'light' && appliedTheme !== 'dark') appliedTheme = 'light';
       document.documentElement.classList.remove('light', 'dark');
       document.documentElement.classList.add(appliedTheme);
     }, [settings.theme]);
     return null;
   }
 
-  const isPublicPath = pathname === '/' || (pathname?.startsWith('/login') ?? false);
-  const isAuthenticated = !!firebaseUser;
+  const publicPath = isPublicPath(pathname);
+  const isAuthenticated = !!firebaseUser || demoMode;
 
-  if (isLoadingAuth && !isPublicPath) {
+  if (isLoadingAuth && !publicPath) {
     // Show loading state only for protected routes while auth is being checked
     return (
       <html lang="en" suppressHydrationWarning>
@@ -100,22 +126,25 @@ export default function RootLayout({
             <meta name="description" content="Loading your financial dashboard." />
         </head>
         <body className={`${inter.variable} font-sans antialiased`} suppressHydrationWarning={true}>
-          <div className="flex justify-center items-center min-h-screen">Loading...</div>
+          <PageSkeleton />
           <Toaster />
         </body>
       </html>
     );
   }
 
-  if (isPublicPath || !isAuthenticated) {
+  if (publicPath || !isAuthenticated) {
     // Render children directly for public paths or if not authenticated (and on a public path, or already redirected)
     return (
       <html lang="en" suppressHydrationWarning>
         <head>
             <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
             <meta name="format-detection" content="telephone=no" />
-            <title>{`${APP_NAME}`}</title>
-            <meta name="description" content="Your personified finance tracker!" />
+            <title>{`${APP_NAME} — Personal finance`}</title>
+            <meta name="description" content="Track expenses, budgets, subscriptions, and goals. Try a sample household without linking a bank." />
+            <meta property="og:title" content="MoneySimp" />
+            <meta property="og:description" content="Track expenses, budgets, subscriptions, and goals." />
+            <meta property="og:image" content="/portfolio-screenshot-landing.png" />
         </head>
         <body className={`${inter.variable} font-sans antialiased`} suppressHydrationWarning={true}>
           {children}
@@ -138,7 +167,13 @@ export default function RootLayout({
         <SettingsProvider>
           <SettingsEffect />
           
-          <div className="flex h-screen bg-background">
+          <div className="flex h-screen flex-col bg-background">
+            {demoMode && (
+              <div className="border-b bg-accent/25 px-4 py-2 text-center text-sm text-foreground">
+                Demo data — Maya Chen&apos;s sample household. These figures are not a live bank connection.
+              </div>
+            )}
+            <div className="flex min-h-0 flex-1">
             {/* Mobile overlay */}
             {isMobileMenuOpen && (
               <div 
@@ -187,6 +222,7 @@ export default function RootLayout({
                 {children}
               </main>
             </div>
+          </div>
           </div>
           
           <ChatbotWidget />

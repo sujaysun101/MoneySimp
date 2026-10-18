@@ -19,7 +19,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { UploadCloud, Image as ImageIcon, Camera, RefreshCcw, CheckCircle, AlertTriangle } from 'lucide-react';
 import Image from "next/legacy/image";
-import { extractAndRecordBill } from '@/app/actions';
+import { authHeaders } from '@/lib/client-auth';
 import type { Expense } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -184,7 +184,34 @@ export function BillUploadForm({ onAddExpense }: BillUploadFormProps) {
     });
 
     try {
-      const result = await extractAndRecordBill(imageDataUri);
+      const headers = await authHeaders();
+      const response = await fetch('/api/ai/extract-bill', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ photoDataUri: imageDataUri }),
+      });
+      const result = await response.json() as {
+        success?: boolean;
+        sample?: boolean;
+        message?: string;
+        error?: string;
+        expenses?: Array<{ description?: string; amount?: number; categoryId?: string; date?: string }>;
+      };
+      if (!response.ok) {
+        toast({
+          variant: "destructive",
+          title: "Could not read the bill",
+          description: result.error || result.message || "Check the image and try again.",
+        });
+        return;
+      }
+      if (result.sample) {
+        toast({
+          title: "Sample extraction",
+          description: result.message || "Gemini is not configured, so this example was not saved.",
+        });
+        return;
+      }
       if (result.success && result.expenses) {
         result.expenses.forEach(expData => {
           // Ensure date is a Date object before passing to onAddExpense

@@ -70,7 +70,7 @@ export interface BankAccount {
   isActive: boolean;
   lastSynced: Date;
   currency: string;
-  provider: 'yodlee'; // Bank integration provider
+  provider: 'yodlee' | 'demo'; // Live link, or sample data in demo mode
   providerAccountId?: string; // Provider-specific account identifier
   accessToken?: string; // For Yodlee or similar providers
 }

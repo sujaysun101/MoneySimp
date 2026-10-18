@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, AlertTriangle, DollarSign, Zap } from 'lucide-react';
 import AIInsightsService, { type SpendingInsight } from '@/lib/ai-insights';
+import { authHeaders } from '@/lib/client-auth';
 import type { Expense, Subscription, Goal } from '@/lib/types';
 
 interface ChatbotMessage {
@@ -24,18 +25,20 @@ async function fetchGeminiResponseWithInsights(
   goals?: Goal[]
 ): Promise<{ response: string; insights?: SpendingInsight[]; suggestions?: string[] }> {
   try {
+    const headers = await authHeaders();
     const res = await fetch('/api/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ 
         messages: messages.map(m => ({ role: m.role, content: m.content })), 
         pageContext,
-        hasFinancialData: expenses && expenses.length > 0,
-        requestInsights: true
       }),
     });
-    if (!res.ok) return { response: "Sorry, I couldn't process your request." };
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 401) return { response: "Sign in, or open the demo household, to use the assistant." };
+    if (res.status === 400) return { response: data.error || "That message could not be read." };
+    if (res.status === 429) return { response: "Too many messages. Wait a minute and try again." };
+    if (!res.ok) return { response: data.response || "The assistant is unavailable right now." };
     
     // Generate AI insights if financial data is available
     let insights: SpendingInsight[] = [];
@@ -58,7 +61,7 @@ async function fetchGeminiResponseWithInsights(
     }
     
     return { 
-      response: data.response || "Sorry, I couldn't process your request.",
+      response: data.sample && data.label ? `> ${data.label}\n\n${data.response || ''}` : (data.response || "Sorry, I couldn't process your request."),
       insights: insights.slice(0, 3), // Top 3 insights
       suggestions
     };

@@ -6,8 +6,23 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Lightbulb, RefreshCw, Sparkles, Loader2, Calendar } from 'lucide-react';
-import { getPersonalizedFinanceTip } from '@/app/actions';
 import type { Expense, Subscription, Goal } from '@/lib/types';
+import { authHeaders } from '@/lib/client-auth';
+
+async function requestFinanceTip(body: unknown) {
+  const headers = await authHeaders();
+  const res = await fetch('/api/ai/finance-tip', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 400) throw new Error(data.error || 'That spending summary could not be read.');
+  if (res.status === 401) throw new Error('Sign in to generate a tip.');
+  if (res.status === 429) throw new Error('Too many tip requests. Wait a minute and try again.');
+  if (!res.ok) throw new Error(data.error || 'Unable to generate a tip.');
+  return data as { tip: string; tipType: string; priority: 'low' | 'medium' | 'high'; sample?: boolean; label?: string };
+}
 
 interface SmartMoneyTipsProps {
   expenses?: Expense[];
@@ -20,6 +35,8 @@ interface DailyTip {
   category: string;
   impact: 'low' | 'medium' | 'high';
   generatedDate: string;
+  sample?: boolean;
+  label?: string;
 }
 
 export function AIFinanceTipCard({ 
@@ -85,7 +102,7 @@ export function AIFinanceTipCard({
 
           console.log('Generating daily tip with recent data:', dataSummary);
 
-          const result = await getPersonalizedFinanceTip({
+          const result = await requestFinanceTip({
             spendingHabits: dataSummary,
             recentTransactions: recentExpenses.slice(0, 5).map(exp => ({
               amount: exp.amount,
@@ -112,7 +129,9 @@ export function AIFinanceTipCard({
               tip: result.tip,
               category: result.tipType.replace('_', ' '),
               impact: result.priority,
-              generatedDate: new Date().toLocaleDateString()
+              generatedDate: new Date().toLocaleDateString(),
+              sample: result.sample,
+              label: result.label,
             };
             
             setCurrentTip(dailyTip);
@@ -171,7 +190,7 @@ export function AIFinanceTipCard({
 
       console.log('Refreshing tip with recent data:', dataSummary);
 
-      const result = await getPersonalizedFinanceTip({
+      const result = await requestFinanceTip({
         spendingHabits: dataSummary,
         recentTransactions: recentExpenses.slice(0, 5).map(exp => ({
           amount: exp.amount,
@@ -198,7 +217,9 @@ export function AIFinanceTipCard({
           tip: result.tip,
           category: result.tipType.replace('_', ' '),
           impact: result.priority,
-          generatedDate: new Date().toLocaleDateString()
+          generatedDate: new Date().toLocaleDateString(),
+          sample: result.sample,
+          label: result.label,
         };
         
         setCurrentTip(dailyTip);
@@ -290,8 +311,11 @@ export function AIFinanceTipCard({
               </Badge>
             </div>
             
-            <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border">
-              <p className="text-sm leading-relaxed text-gray-700 font-medium">
+            {currentTip.sample && (
+              <Badge variant="outline">{currentTip.label || 'Sample response'}</Badge>
+            )}
+            <div className="rounded-lg border bg-muted p-4">
+              <p className="text-sm font-medium leading-relaxed text-foreground">
                 {currentTip.tip}
               </p>
             </div>
