@@ -105,10 +105,9 @@ export function useOptimizedExpenses(userId?: string): UseOptimizedDataResult<Ex
   }, [userId]);
 
   useEffect(() => {
-    if (!loadedRef.current) {
-      loadExpenses();
-    }
-  }, [loadExpenses]);
+    if (!userId) return;
+    void loadExpenses();
+  }, [userId, loadExpenses]);
 
   return {
     data,
@@ -210,10 +209,9 @@ export function useOptimizedSubscriptions(userId?: string): UseOptimizedDataResu
   }, [userId]);
 
   useEffect(() => {
-    if (!loadedRef.current) {
-      loadSubscriptions();
-    }
-  }, [loadSubscriptions]);
+    if (!userId) return;
+    void loadSubscriptions();
+  }, [userId, loadSubscriptions]);
 
   return {
     data,
@@ -310,10 +308,9 @@ export function useOptimizedBudgets(userId?: string): UseOptimizedDataResult<Bud
   }, [userId]);
 
   useEffect(() => {
-    if (!loadedRef.current) {
-      loadBudgets();
-    }
-  }, [loadBudgets]);
+    if (!userId) return;
+    void loadBudgets();
+  }, [userId, loadBudgets]);
 
   return {
     data,

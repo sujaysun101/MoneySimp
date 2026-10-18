@@ -8,8 +8,10 @@ import { cn } from '@/lib/utils';
 import React, { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { auth } from '@/lib/firebase'; 
-import { onAuthStateChanged, signOut } from 'firebase/auth'; 
+import { auth } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { endSession } from '@/lib/client-auth';
+import { isDemoMode } from '@/lib/demo-client'; 
 
 export function SidebarNav() {
   const pathname = usePathname();
@@ -18,11 +20,12 @@ export function SidebarNav() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 
   useEffect(() => {
+    if (isDemoMode()) setIsAuthenticated(true);
     if (!auth) return;
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setIsAuthenticated(!!user);
+      setIsAuthenticated(!!user || isDemoMode());
     });
-    return () => unsubscribe(); 
+    return () => unsubscribe();
   }, []);
 
   const handleNavItemClick = () => {
@@ -34,20 +37,14 @@ export function SidebarNav() {
   };
   
   const handleLogout = async () => {
-    if (!auth) {
-      toast({ title: "Logout Failed", description: "Authentication not initialized.", variant: "destructive" });
-      return;
-    }
     try {
-      await signOut(auth);
-      localStorage.removeItem('moneySimpLoggedIn');
-      localStorage.removeItem('moneySimpUserEmail');
-      toast({ title: "Logged Out", description: "You have been successfully logged out." });
-      handleNavItemClick(); // Close mobile menu if open
-      router.push('/login'); 
+      await endSession();
+      toast({ title: "Signed out", description: "You have been signed out." });
+      handleNavItemClick();
+      router.push('/');
     } catch (error) {
       console.error("Logout failed:", error);
-      toast({ title: "Logout Failed", description: "Could not log you out. Please try again.", variant: "destructive"});
+      toast({ title: "Sign out failed", description: "Could not sign you out. Try again.", variant: "destructive"});
     }
   };
 

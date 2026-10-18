@@ -61,3 +61,5 @@ export const ALL_NAV_ITEMS = [...AUTH_NAV_ITEMS, ...UNAUTH_NAV_ITEMS];
 export const EXPENSES_STORAGE_KEY = 'moneySimp-expenses';
 export const BUDGETS_STORAGE_KEY = 'moneySimp-budgets';
 export const SUBSCRIPTIONS_STORAGE_KEY = 'moneySimp-subscriptions';
+export const ACCOUNTS_STORAGE_KEY = 'moneySimp-accounts';
+export const GOALS_STORAGE_KEY = 'moneySimp-goals';

@@ -18,6 +18,7 @@ import {
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { createGoal } from '@/lib/firebase/goals';
+import { isDemoMode, readStoredGoals, writeStoredGoals } from '@/lib/demo-client';
 
 export default function NewGoalPage() {
   const router = useRouter();
@@ -25,10 +26,17 @@ export default function NewGoalPage() {
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    if (!auth) return;
+    if (isDemoMode()) {
+      setUser({ uid: "demo-household" });
+      return;
+    }
+    if (!auth) {
+      router.replace("/login");
+      return;
+    }
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (!firebaseUser) {
-        router.replace("/login");
+        if (!isDemoMode()) router.replace("/login");
       } else {
         setUser(firebaseUser);
       }
@@ -44,6 +52,22 @@ export default function NewGoalPage() {
     const targetAmount = parseFloat(formData.get('targetAmount') as string);
     const targetDate = selectedDate || new Date();
     const description = formData.get('description') as string;
+    if (isDemoMode()) {
+      const goals = readStoredGoals<Record<string, unknown>>();
+      goals.push({
+        id: crypto.randomUUID(),
+        name,
+        targetAmount,
+        currentAmount: 0,
+        savedAmount: 0,
+        targetDate,
+        description: description || undefined,
+        isCompleted: false,
+      });
+      writeStoredGoals(goals);
+      router.push('/goals');
+      return;
+    }
     try {
       await createGoal({
         userId: user.uid,

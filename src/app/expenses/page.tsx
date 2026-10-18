@@ -14,6 +14,7 @@ import {
   LazyBillUploadForm,
   LazyFormComponent 
 } from '@/components/performance/LazyComponents';
+import { PageSkeleton } from '@/components/shared/PageSkeleton';
 
 // Memoized components for better performance
 const MemoizedExpenseList = memo<{
@@ -66,13 +67,7 @@ export default function ExpensesPage() {
     console.log('Expense added successfully');
   }, []);
 
-  if (isAuthLoading) {
-    return (
-      <div className="container mx-auto py-8 flex justify-center items-center min-h-[calc(100vh-10rem)]">
-        <p>Loading expenses...</p>
-      </div>
-    );
-  }
+  if (isAuthLoading || expensesLoading) return <PageSkeleton />;
 
   if (expensesError) {
     return (

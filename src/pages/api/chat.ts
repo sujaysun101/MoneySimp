@@ -1,66 +1,104 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { ai } from '@/ai/genkit';
+import { z } from 'zod';
+import { getAi, geminiConfigured } from '@/ai/genkit';
+import { consumeAiToken, resolveSession } from '@/lib/server/session';
+
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '64kb',
+    },
+  },
+};
+
+const ChatSchema = z.object({
+  messages: z.array(z.object({
+    role: z.enum(['user', 'assistant', 'system']),
+    content: z.string().max(2000),
+  })).min(1).max(12),
+  pageContext: z.string().max(300).optional(),
+});
+
+function sampleReply(question: string): string {
+  const q = question.toLowerCase();
+  if (q.includes('subscription')) {
+    return 'List each recurring charge, keep the ones you used in the last 30 days, and cancel the rest. Start with the largest monthly amount.';
+  }
+  if (q.includes('save') || q.includes('transfer') || q.includes('goal')) {
+    return 'A practical starting transfer is 10 percent of this month’s take-home pay, sent the day you are paid. Raise it only after the emergency category stays under budget.';
+  }
+  if (q.includes('budget')) {
+    return 'Set the budget from the average of the last three months, then lower the category that grew the most. Check it once a week, not every purchase.';
+  }
+  return 'Compare this month’s category totals with last month and change one habit: the largest non-essential category. Small repeats beat a one-week freeze.';
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'POST') return res.status(405).end();
-
-  const { messages, pageContext } = req.body;
-
-  // Validate messages
-  if (!Array.isArray(messages)) {
-    return res.status(400).json({ response: "Messages must be an array." });
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+    return res.status(405).json({ error: 'Method not allowed.' });
   }
-  
-  if (messages.some(m => !m || typeof m.role !== 'string' || (!m.content && m.content !== ''))) {
-    return res.status(400).json({ response: "Invalid message format." });
+
+  const header = req.headers.authorization || '';
+  const bearer = header.startsWith('Bearer ') ? header.slice(7).trim() : undefined;
+  const user = await resolveSession({
+    demo: req.cookies?.ms_demo,
+    session: req.cookies?.ms_session,
+    bearer,
+  });
+  if (!user) {
+    return res.status(401).json({ error: 'Sign in required.' });
+  }
+
+  const parsed = ChatSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Invalid chat message.', details: parsed.error.flatten() });
+  }
+
+  if (!consumeAiToken(user.uid)) {
+    return res.status(429).json({ error: 'Too many requests. Try again in a minute.' });
+  }
+
+  const lastUser = [...parsed.data.messages].reverse().find((message) => message.role === 'user');
+  const question = lastUser?.content || parsed.data.messages[parsed.data.messages.length - 1].content;
+  const labeledSample = {
+    response: sampleReply(question),
+    sample: true,
+    label: 'Sample response — set GEMINI_API_KEY to use Gemini.',
+  };
+
+  if (!geminiConfigured()) {
+    return res.status(200).json(labeledSample);
   }
 
   try {
-    // Ensure all messages have the correct format
-    const formattedMessages = messages.map((msg: any, index: number) => {
-      if (!msg) {
-        console.warn(`Message at index ${index} is null/undefined`);
-        return { role: 'user', content: '' };
-      }
-      
-      return {
-        role: msg.role || 'user',
-        content: typeof msg.content === 'string' ? msg.content : String(msg.content || '')
-      };
+    const ai = getAi();
+    if (!ai) return res.status(200).json(labeledSample);
+
+    const history = parsed.data.messages
+      .map((message) => `${message.role}: ${message.content}`)
+      .join('\n')
+      .slice(0, 8000);
+    const pageContext = parsed.data.pageContext || 'general';
+    const fullPrompt = `You are MoneySimp, a personal finance assistant. Answer the latest question using the conversation. Be specific and concise. Do not invent account balances.
+
+Page context: ${pageContext}
+
+Conversation:
+${history}`;
+
+    const aiResponse = await ai.generate({
+      prompt: fullPrompt,
+      config: { maxOutputTokens: 512 },
     });
-
-    // Compose the prompt for the LLM - using Genkit's expected format
-    const conversationHistory = formattedMessages
-      .map(msg => `${msg.role}: ${msg.content}`)
-      .join('\n');
-    
-    const fullPrompt = `You are MoneySimp, a helpful financial assistant chatbot. You help users with personal finance questions, budgeting, investment advice, and financial planning.
-
-Context: This is a personal finance management application where users can track expenses, manage budgets, and get financial insights. Page context: ${pageContext}
-
-IMPORTANT: Format your response using markdown for better readability:
-- Use **bold** for important points, key terms, and amounts
-- Use *italics* for emphasis and tips
-- Use bullet points (-) for lists and multiple items
-- Use numbered lists (1.) for step-by-step instructions
-- Use \`code formatting\` for specific values, percentages, or formulas
-- Use ## headers to organize longer responses into clear sections
-- Use > blockquotes for important tips, warnings, or key takeaways
-- Keep paragraphs short and scannable
-- Use line breaks to separate different concepts
-
-Always provide helpful, accurate financial advice formatted in a clean, easy-to-read manner.
-
-Conversation history:
-${conversationHistory}
-
-Please provide a well-formatted markdown response:`;
-
-    const aiResponse = await ai.generate(fullPrompt);
-
-    res.status(200).json({ response: aiResponse.text ?? "" });
+    const text = (aiResponse.text || '').trim();
+    if (!text) return res.status(200).json(labeledSample);
+    return res.status(200).json({ response: text, sample: false });
   } catch (error) {
     console.error('AI chat error:', error);
-    res.status(500).json({ response: "Sorry, I couldn't process your request." });
+    return res.status(200).json({
+      ...labeledSample,
+      label: 'Sample response — Gemini did not answer.',
+    });
   }
 }

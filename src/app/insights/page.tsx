@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback, memo } from 'react';
 import type { Expense, Budget } from '@/lib/types';
-import { CATEGORIES } from '@/lib/constants';
+import { BUDGETS_STORAGE_KEY, CATEGORIES, EXPENSES_STORAGE_KEY } from '@/lib/constants';
+import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import { format, subMonths, startOfMonth, isSameMonth } from 'date-fns';
 import { ChartModal } from '@/components/shared/ChartModal';
 import { Circle } from "lucide-react";
@@ -16,10 +17,6 @@ import {
   LazyAverageCategorySpendingChart,
   LazyChartComponent
 } from '@/components/performance/LazyComponents';
-
-// Add missing storage key constants
-const EXPENSES_STORAGE_KEY = 'moneySimpExpenses';
-const BUDGETS_STORAGE_KEY = 'moneySimpBudgets';
 
 // Type imports for chart data
 import type { SpendingDataPoint } from '@/components/insights/SpendingBreakdownChart';
@@ -226,10 +223,18 @@ export default function InsightsPage() {
   }, [isAuthLoading, processChartData]);
 
 
-  if (isAuthLoading) {
+  if (isAuthLoading || expensesLoading) return <PageSkeleton />;
+
+  if (expenses.length === 0) {
     return (
-      <div className="container mx-auto py-8 flex justify-center items-center min-h-[calc(100vh-10rem)]">
-        <p>Loading insights...</p>
+      <div className="mx-auto max-w-3xl px-1 py-6">
+        <h2 className="text-2xl font-semibold">Spending insights</h2>
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>No spending to chart yet</CardTitle>
+            <CardDescription>Add expenses, or open the demo household, and the category and trend charts will fill in.</CardDescription>
+          </CardHeader>
+        </Card>
       </div>
     );
   }
@@ -258,23 +263,19 @@ export default function InsightsPage() {
         </div>
       </div>
 
-      <Card className="mt-8 shadow-lg">
-        <CardHeader>
-          <CardTitle>More Insights Explored!</CardTitle>
-          <CardDescription>We've added more detailed analytics to help you manage your finances better.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">
-            Considerations for future insights:
-          </p>
-          <ul className="list-disc list-inside text-muted-foreground mt-2 space-y-1">
-            <li>Spending by merchant or specific items.</li>
-            <li>Savings rate and progress towards financial goals.</li>
-            <li>Subscription tracking and management.</li>
-            <li>Day of week spending patterns.</li>
-          </ul>
-        </CardContent>
-      </Card>
+      {breakdownData[0] && (
+        <Card className="mt-8 shadow-sm">
+          <CardHeader>
+            <CardTitle>Largest category</CardTitle>
+            <CardDescription>Across the expenses currently stored in this browser.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">
+              {breakdownData[0].category} is the largest slice at ${breakdownData[0].amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.
+            </p>
+          </CardContent>
+        </Card>
+      )}
        <ChartModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 

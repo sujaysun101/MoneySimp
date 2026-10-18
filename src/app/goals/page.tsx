@@ -7,9 +7,11 @@ import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
-import { getGoals, getSpendingRecommendation, updateGoalProgress, deleteGoal, setUserAutoTransfer } from "@/lib/firebase/goals";
-import { db } from "@/lib/firebase"; // Import the Firestore db instance
+import { getGoals, updateGoalProgress, deleteGoal, setUserAutoTransfer } from "@/lib/firebase/goals";
+import { db } from "@/lib/firebase";
 import { updateDoc, doc, getDoc, setDoc } from "firebase/firestore";
+import { isDemoMode, readStoredGoals, writeStoredGoals } from "@/lib/demo-client";
+import { PageSkeleton } from "@/components/shared/PageSkeleton";
 
 async function fetchAIRecommendation(userId: string) {
   // You can pass user's spending/goals context if needed
@@ -18,13 +20,14 @@ async function fetchAIRecommendation(userId: string) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       messages: [
-        { role: "user", content: `Based on my recent spending and goals, what is a smart monthly savings transfer amount? Please give a single number and a short explanation.` }
+        { role: "user", content: "Based on a typical month of rent, groceries, and dining, what is a sensible automatic savings transfer? Give one number and a short reason." }
       ],
-      pageContext: `userId: ${userId}`
+      pageContext: "goals"
     })
   });
+  if (!res.ok) return null;
   const data = await res.json();
-  return data.response;
+  return data.label ? `${data.label} ${data.response || ""}` : data.response;
 }
 
 export default function GoalsPage() {
@@ -60,27 +63,57 @@ export default function GoalsPage() {
   const [completeOverlayVisible, setCompleteOverlayVisible] = useState(false);
   const [deleteOverlayVisible, setDeleteOverlayVisible] = useState(false);
 
+  function updateDemoGoals(next: any[], message: string, type: string) {
+    const current = readStoredGoals();
+    setUndoStack(stack => [...stack, { type: "snapshot", goals: current }]);
+    writeStoredGoals(next);
+    setGoals(next);
+    setActionMessage(message);
+    setActionType(type);
+  }
+
   useEffect(() => {
-    if (!auth) return;
+    if (isDemoMode()) {
+      setUser({ uid: "demo-household", email: "demo@moneysimp.app" });
+      setGoals(readStoredGoals());
+      setIsLoading(false);
+      return;
+    }
+    if (!auth) {
+      setIsLoading(false);
+      router.replace("/login");
+      return;
+    }
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) {
-        router.replace("/login");
+        if (!isDemoMode()) router.replace("/login");
       } else {
         setUser(firebaseUser);
-        // Fetch goals
         const userId = firebaseUser.uid;
         const fetchedGoals = await getGoals(userId);
         setGoals(fetchedGoals);
         setIsLoading(false);
-        // Fetch AI recommendation
-        const aiRec = await fetchAIRecommendation(userId);
-        setAIRecommendation(aiRec);
+        try {
+          const aiRec = await fetchAIRecommendation(userId);
+          setAIRecommendation(aiRec);
+        } catch (error) {
+          console.error("Could not load a savings suggestion", error);
+        }
       }
     });
     return () => unsubscribe();
   }, [router]);
 
   const handleUpdateProgress = async (goalId: string, amount: number) => {
+    if (isDemoMode()) {
+      const next = readStoredGoals<any>().map(goal => goal.id === goalId
+        ? { ...goal, currentAmount: (Number(goal.currentAmount) || 0) + amount, savedAmount: (Number(goal.savedAmount) || 0) + amount }
+        : goal);
+      updateDemoGoals(next, "Goal progress updated!", "progress");
+      setEditGoalId(null);
+      setEditAmount(0);
+      return;
+    }
     try {
       await updateGoalProgress(goalId, amount);
       setEditGoalId(null);
@@ -103,6 +136,14 @@ export default function GoalsPage() {
 
   // Handler for saving edits (with undo support)
   const handleSaveEdit = async (goalId: string) => {
+    if (isDemoMode()) {
+      const next = readStoredGoals<any>().map(goal => goal.id === goalId
+        ? { ...goal, name: editName, targetAmount: editTarget, targetDate: editDate, description: editDescription }
+        : goal);
+      updateDemoGoals(next, `Goal "${editName}" updated!`, "edit");
+      setEditGoalId(null);
+      return;
+    }
     try {
       if (!db) {
         alert("Firestore database is not initialized");
@@ -132,6 +173,14 @@ export default function GoalsPage() {
   // Handler for deleting a goal (with undo support)
   const handleDeleteGoal = async (goalId: string) => {
     if (!window.confirm("Are you sure you want to delete this goal?")) return;
+    if (isDemoMode()) {
+      const current = readStoredGoals<any>();
+      const prev = current.find(goal => goal.id === goalId);
+      updateDemoGoals(current.filter(goal => goal.id !== goalId), `Goal "${prev?.name || "Goal"}" deleted!`, "delete");
+      setDeletedGoalId(goalId);
+      setTimeout(() => setDeletedGoalId(null), 3000);
+      return;
+    }
     try {
       const goalRef = doc(db as import("firebase/firestore").Firestore, "goals", goalId);
       const prevSnap = await getDoc(goalRef);
@@ -151,6 +200,14 @@ export default function GoalsPage() {
 
   // Handler for marking a goal as completed (with undo support and overlay)
   const handleMarkCompleted = async (goalId: string) => {
+    if (isDemoMode()) {
+      const current = readStoredGoals<any>();
+      const prev = current.find(goal => goal.id === goalId);
+      updateDemoGoals(current.map(goal => goal.id === goalId ? { ...goal, isCompleted: true } : goal), `Goal "${prev?.name || "Goal"}" marked as completed!`, "complete");
+      setCompletedGoalId(goalId);
+      setTimeout(() => setCompletedGoalId(null), 3000);
+      return;
+    }
     try {
       if (!db) {
         alert("Firestore database is not initialized");
@@ -219,6 +276,16 @@ export default function GoalsPage() {
   // Handler for saving progress updates (with undo support)
   const handleProgressSave = async (goalId: string) => {
     if (progressAmount <= 0) return;
+    if (isDemoMode()) {
+      const next = readStoredGoals<any>().map(goal => goal.id === goalId
+        ? { ...goal, currentAmount: (Number(goal.currentAmount) || 0) + progressAmount, savedAmount: (Number(goal.savedAmount) || 0) + progressAmount }
+        : goal);
+      updateDemoGoals(next, "Goal progress updated!", "progress");
+      setProgressEditGoalId(null);
+      setProgressAmount(0);
+      triggerConfetti();
+      return;
+    }
     try {
       await updateGoalProgress(goalId, progressAmount);
       setUndoStack(stack => [...stack, { type: "progress", goalId, amount: progressAmount }]);
@@ -238,6 +305,12 @@ export default function GoalsPage() {
   const handleUndo = async () => {
     if (undoStack.length === 0) return;
     const last = undoStack[undoStack.length - 1];
+    if (isDemoMode() && last.type === "snapshot") {
+      writeStoredGoals(last.goals);
+      setGoals(last.goals);
+      setUndoStack(stack => stack.slice(0, -1));
+      return;
+    }
     if (last.type === "progress") {
       await updateGoalProgress(last.goalId, -last.amount);
     } else if (last.type === "edit" && last.prevData) {
@@ -306,13 +379,7 @@ export default function GoalsPage() {
     setActionType("");
   };
 
-  if (isLoading) {
-    return (
-      <div className="container mx-auto py-8 flex justify-center items-center min-h-[calc(100vh-10rem)]">
-        <p>Loading goals...</p>
-      </div>
-    );
-  }
+  if (isLoading) return <PageSkeleton />;
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16">
@@ -363,10 +430,20 @@ export default function GoalsPage() {
         </div>
       )}
       */}
-      <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded text-blue-900 flex flex-col items-center justify-center">
-        <h2 className="text-xl font-bold mb-2">AI Analyzer Coming Soon...</h2>
-        <p className="text-muted-foreground">Personalized AI-powered financial insights will be available soon!</p>
-      </div>
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Saved toward your targets</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {goals.length === 0 ? (
+            <p className="text-muted-foreground">No goals yet. Add one to track a target date and the amount saved.</p>
+          ) : (
+            <p className="text-muted-foreground">
+              ${goals.reduce((sum, goal) => sum + (Number(goal.currentAmount) || 0), 0).toLocaleString()} saved of ${goals.reduce((sum, goal) => sum + (Number(goal.targetAmount) || 0), 0).toLocaleString()} across {goals.length} {goals.length === 1 ? "goal" : "goals"}.
+            </p>
+          )}
+        </CardContent>
+      </Card>
       <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center">
         {actionMessage && (
           <div
@@ -421,7 +498,7 @@ export default function GoalsPage() {
                   ) : goal.name}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center gap-4">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                     <div className="flex-1">
                       <Progress value={progress} className="h-3" />
                       <div className="flex justify-between text-xs mt-1">
@@ -494,7 +571,7 @@ export default function GoalsPage() {
                         </>
                       )}
                     </div>
-                    <div className="flex flex-col gap-2 ml-4">
+                    <div className="flex flex-row flex-wrap gap-2 sm:ml-4 sm:flex-col">
                       {!isEditing && <Button variant="outline" size="sm" onClick={() => handleEditGoal(goal)}>Edit</Button>}
                       <Button variant="outline" size="sm" onClick={() => handleDeleteGoal(goal.id)}>Delete</Button>
                       {!goal.isCompleted && <Button size="sm" onClick={() => handleMarkCompleted(goal.id)}>Mark as Completed</Button>}

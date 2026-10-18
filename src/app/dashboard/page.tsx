@@ -1,82 +1,114 @@
-// src/app/dashboard/page.tsx
-"use client"; 
+"use client";
 
 import { AIFinanceTipCard } from '@/components/shared/AIFinanceTipCard';
-import { ChartModal } from '@/components/shared/ChartModal';
+import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import { SpendingBreakdownChart, type SpendingDataPoint } from '@/components/insights/SpendingBreakdownChart';
 import { SubscriptionReminders } from '@/components/subscriptions/SubscriptionReminders';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { DollarSign, TrendingUp, Landmark, PlusCircle, PieChart, Info, RefreshCw, Target } from 'lucide-react';
+import { DollarSign, TrendingUp, Landmark, PlusCircle, Info, RefreshCw, Target } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Expense } from '@/lib/types';
-import { CATEGORIES, EXPENSES_STORAGE_KEY } from '@/lib/constants';
+import type { Expense, Goal, Subscription } from '@/lib/types';
+import { ACCOUNTS_STORAGE_KEY, BUDGETS_STORAGE_KEY, CATEGORIES, EXPENSES_STORAGE_KEY, GOALS_STORAGE_KEY, SUBSCRIPTIONS_STORAGE_KEY } from '@/lib/constants';
 import { isSameMonth, format } from 'date-fns';
-import { ChatbotWidget } from '@/components/ui/ChatbotWidget/ChatbotWidget';
 
+function money(value: number) {
+  return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 
 export default function DashboardPage() {
   const router = useRouter();
   const [clientTotalBalance, setClientTotalBalance] = useState<string | null>(null);
   const [clientMonthlySpending, setClientMonthlySpending] = useState<string | null>(null);
   const [clientBudgetProgress, setClientBudgetProgress] = useState<string | null>(null);
-  const [spendingHabitsSummary, setSpendingHabitsSummary] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
-  
-  // Add state for expenses and subscriptions to pass to AIFinanceTipCard
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [subscriptions, setSubscriptions] = useState<any[]>([]);
-
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
   const [currentMonthChartData, setCurrentMonthChartData] = useState<SpendingDataPoint[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalChartTitle, setModalChartTitle] = useState("");
-  const [modalChartContent, setModalChartContent] = useState<React.ReactNode | null>(null);
-  const [chatbotOpen, setChatbotOpen] = useState(true);
 
   const loadDashboardData = useCallback(() => {
-    // Simulate fetching data for an authenticated user
-    const storedExpenses = localStorage.getItem(EXPENSES_STORAGE_KEY);
     let expensesData: Expense[] = [];
+    const storedExpenses = localStorage.getItem(EXPENSES_STORAGE_KEY);
     if (storedExpenses) {
       try {
-        expensesData = JSON.parse(storedExpenses).map((exp: any) => ({
+        expensesData = JSON.parse(storedExpenses).map((exp: Expense) => ({
           ...exp,
           date: new Date(exp.date),
         }));
-      } catch (e) {
-        console.error("Error parsing expenses for dashboard:", e);
+      } catch (error) {
+        console.error("Error parsing expenses for dashboard:", error);
       }
     }
-    
-    // Set expenses state for AIFinanceTipCard
     setExpenses(expensesData);
-    
-    // Load subscriptions (empty for now, but can be expanded)
-    setSubscriptions([]);
-    
+
+    let subscriptionData: Subscription[] = [];
+    const storedSubscriptions = localStorage.getItem(SUBSCRIPTIONS_STORAGE_KEY);
+    if (storedSubscriptions) {
+      try {
+        subscriptionData = JSON.parse(storedSubscriptions).map((sub: Subscription) => ({
+          ...sub,
+          nextPaymentDate: new Date(sub.nextPaymentDate),
+        }));
+      } catch (error) {
+        console.error("Error parsing subscriptions for dashboard:", error);
+      }
+    }
+    setSubscriptions(subscriptionData);
+
+    let goalData: Goal[] = [];
+    const storedGoals = localStorage.getItem(GOALS_STORAGE_KEY);
+    if (storedGoals) {
+      try {
+        const parsed = JSON.parse(storedGoals);
+        if (Array.isArray(parsed)) {
+          goalData = parsed.map((goal: Goal & { currentAmount?: number }) => ({
+            ...goal,
+            savedAmount: goal.savedAmount ?? goal.currentAmount ?? 0,
+            createdAt: goal.createdAt ? new Date(goal.createdAt) : new Date(),
+          }));
+        }
+      } catch (error) {
+        console.error("Error parsing goals for dashboard:", error);
+      }
+    }
+    setGoals(goalData);
+
     const today = new Date();
     const currentMonthExpenses = expensesData.filter(expense => isSameMonth(new Date(expense.date), today));
-    
     const monthlySpending = currentMonthExpenses.reduce((sum, exp) => sum + exp.amount, 0);
-    setClientMonthlySpending(monthlySpending.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+    setClientMonthlySpending(money(monthlySpending));
 
-    // For total balance and budget progress, we'd need accounts and budgets data
-    // Sticking to 0 for now as per previous logic, unless we implement accounts/full budget integration here.
-    const currentTotalBalance = 0; 
-    const currentBudgetProgress = 0; 
-
-    setClientTotalBalance(currentTotalBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-    setClientBudgetProgress(currentBudgetProgress.toFixed(0));
-
-    if (currentTotalBalance > 0 || monthlySpending > 0) {
-      setSpendingHabitsSummary(`User has a total balance of $${currentTotalBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}, with monthly spending around $${monthlySpending.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. Budget utilization is at ${currentBudgetProgress}%.`);
-    } else {
-      setSpendingHabitsSummary("User has no recent spending to analyze."); 
+    let netBalance = 0;
+    const storedAccounts = localStorage.getItem(ACCOUNTS_STORAGE_KEY);
+    if (storedAccounts) {
+      try {
+        const accounts = JSON.parse(storedAccounts) as Array<{ type?: string; balance?: { current?: number } }>;
+        netBalance = accounts.reduce((sum, account) => {
+          const current = account.balance?.current || 0;
+          return account.type === 'credit' || account.type === 'loan' ? sum - current : sum + current;
+        }, 0);
+      } catch (error) {
+        console.error("Error parsing accounts for dashboard:", error);
+      }
     }
+    setClientTotalBalance(money(netBalance));
 
-    // Prepare data for current month spending breakdown chart
+    let budgetTotal = 0;
+    const storedBudgets = localStorage.getItem(BUDGETS_STORAGE_KEY);
+    if (storedBudgets) {
+      try {
+        const budgets = JSON.parse(storedBudgets) as Array<{ amount?: number }>;
+        budgetTotal = budgets.reduce((sum, budget) => sum + (budget.amount || 0), 0);
+      } catch (error) {
+        console.error("Error parsing budgets for dashboard:", error);
+      }
+    }
+    const progress = budgetTotal > 0 ? Math.min(100, Math.round((monthlySpending / budgetTotal) * 100)) : 0;
+    setClientBudgetProgress(String(progress));
+
     const categoryTotals: { [key: string]: number } = {};
     currentMonthExpenses.forEach(expense => {
       categoryTotals[expense.categoryId] = (categoryTotals[expense.categoryId] || 0) + expense.amount;
@@ -91,168 +123,128 @@ export default function DashboardPage() {
       };
     }).sort((a, b) => b.amount - a.amount);
     setCurrentMonthChartData(newBreakdownData);
-
   }, []);
-
 
   useEffect(() => {
     const isLoggedIn = localStorage.getItem('moneySimpLoggedIn');
     if (!isLoggedIn) {
       router.replace('/login');
-    } else {
-      loadDashboardData();
-      setIsLoading(false);
+      return;
     }
+    loadDashboardData();
+    setIsLoading(false);
   }, [router, loadDashboardData]);
 
-  const handleChartClick = (chartData: SpendingDataPoint[], title: string) => {
-    setModalChartTitle(title);
-    setModalChartContent(<SpendingBreakdownChart data={chartData} />);
-    setIsModalOpen(true);
-  };
+  if (isLoading) return <PageSkeleton />;
 
-  if (isLoading) {
-    return (
-      <div className="container mx-auto py-8 flex justify-center items-center min-h-[calc(100vh-10rem)]">
-        <p>Loading dashboard...</p>
-      </div>
-    );
-  }
-
+  const monthLabel = format(new Date(), 'MMMM yyyy');
 
   return (
     <>
-      <div className="container mx-auto py-8 px-8 sm:px-12 md:px-16 lg:px-20 w-full max-w-full">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground break-words truncate max-w-full sm:max-w-2xl">Dashboard</h1>
-          <p className="text-muted-foreground break-words truncate max-w-full sm:max-w-2xl">Your smart personal finance overview.</p>
+      <div className="mx-auto w-full max-w-6xl px-1 py-2 sm:px-2">
+        <div className="mb-6">
+          <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Overview</h2>
+          <p className="text-muted-foreground">Cash, this month’s spending, and the categories that used the budget.</p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
-          <Card className="shadow-md hover:shadow-lg transition-shadow min-w-0 break-words">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 min-w-0">
-              <CardTitle className="text-sm font-medium truncate">Total Balance</CardTitle>
-              <DollarSign className="h-5 w-5 text-accent flex-shrink-0" />
+        <div className="mb-6 grid gap-4 sm:grid-cols-3">
+          <Card className="shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Cash minus card balances</CardTitle>
+              <DollarSign className="h-5 w-5 text-accent" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold truncate">${clientTotalBalance !== null ? clientTotalBalance : '0.00'}</div>
+              <div className="text-2xl font-semibold">${clientTotalBalance ?? '0.00'}</div>
             </CardContent>
           </Card>
-          <Card className="shadow-md hover:shadow-lg transition-shadow min-w-0 break-words">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 min-w-0">
-              <CardTitle className="text-sm font-medium truncate">This Month's Spending</CardTitle>
-              <TrendingUp className="h-5 w-5 text-destructive flex-shrink-0" />
+          <Card className="shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Spent in {monthLabel}</CardTitle>
+              <TrendingUp className="h-5 w-5 text-destructive" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold truncate">${clientMonthlySpending !== null ? clientMonthlySpending : '0.00'}</div>
+              <div className="text-2xl font-semibold">${clientMonthlySpending ?? '0.00'}</div>
             </CardContent>
           </Card>
-          <Card className="shadow-md hover:shadow-lg transition-shadow min-w-0 break-words">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 min-w-0">
-              <CardTitle className="text-sm font-medium truncate">Budget Progress</CardTitle>
-              <Landmark className="h-5 w-5 text-primary flex-shrink-0" />
+          <Card className="shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Budget used</CardTitle>
+              <Landmark className="h-5 w-5 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold truncate">{clientBudgetProgress !== null ? clientBudgetProgress : '0'}% Utilized</div>
+              <div className="text-2xl font-semibold">{clientBudgetProgress ?? '0'}%</div>
             </CardContent>
           </Card>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3">
-          <div className="md:col-span-2 min-w-0">
-            <Card className="shadow-lg min-w-0">
-              <CardHeader>
-                <CardTitle className="truncate">Quick Actions</CardTitle>
-                <CardDescription className="truncate">Manage your finances with ease.</CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-4 sm:grid-cols-2">
-                <Link href="/expenses" passHref>
-                  <Button variant="outline" className="w-full justify-start text-left p-4 h-auto min-w-0 min-h-[44px] touch-manipulation" style={{ WebkitTapHighlightColor: 'transparent' }}>
-                    <PlusCircle className="mr-3 h-5 w-5 text-primary flex-shrink-0" />
-                    <div className="min-w-0">
-                      <p className="font-semibold truncate">Add New Expense</p>
-                      <p className="text-xs text-muted-foreground truncate">Log your recent spendings.</p>
-                    </div>
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            {currentMonthChartData.length > 0 ? (
+              <SpendingBreakdownChart data={currentMonthChartData} title={`Spending in ${monthLabel}`} description="By category" />
+            ) : (
+              <Card>
+                <CardContent className="flex h-64 flex-col items-center justify-center gap-3 text-center text-muted-foreground">
+                  <Info className="h-10 w-10" />
+                  <p>No spending in {monthLabel} yet.</p>
+                  <Button asChild>
+                    <Link href="/expenses">Add an expense</Link>
                   </Button>
-                </Link>
-                <Link href="/budgets" passHref>
-                   <Button variant="outline" className="w-full justify-start text-left p-4 h-auto min-w-0 min-h-[44px] touch-manipulation" style={{ WebkitTapHighlightColor: 'transparent' }}>
-                    <TrendingUp className="mr-3 h-5 w-5 text-primary flex-shrink-0" />
-                     <div className="min-w-0">
-                      <p className="font-semibold truncate">Set/View Budgets</p>
-                      <p className="text-xs text-muted-foreground truncate">Manage your monthly budgets.</p>
-                    </div>
-                  </Button>
-                </Link>
-                <Link href="/subscriptions" passHref>
-                  <Button variant="outline" className="w-full justify-start text-left p-4 h-auto min-w-0 min-h-[44px] touch-manipulation" style={{ WebkitTapHighlightColor: 'transparent' }}>
-                    <RefreshCw className="mr-3 h-5 w-5 text-primary flex-shrink-0" />
-                    <div className="min-w-0">
-                      <p className="font-semibold truncate">Manage Subscriptions</p>
-                      <p className="text-xs text-muted-foreground truncate">Track recurring payments.</p>
-                    </div>
-                  </Button>
-                </Link>
-                <Link href="/goals" passHref>
-                  <Button variant="outline" className="w-full justify-start text-left p-4 h-auto min-w-0 min-h-[44px] touch-manipulation" style={{ WebkitTapHighlightColor: 'transparent' }}>
-                    <Target className="mr-3 h-5 w-5 text-primary flex-shrink-0" />
-                    <div className="min-w-0">
-                      <p className="font-semibold truncate">Financial Goals</p>
-                      <p className="text-xs text-muted-foreground truncate">Set and track your goals.</p>
-                    </div>
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-            
-            <Card className="mt-6 shadow-lg min-w-0">
-              <CardHeader>
-                  <CardTitle className="flex items-center truncate">
-                    <PieChart className="mr-2 h-5 w-5 text-primary flex-shrink-0" />
-                    <span className="truncate">Spending This Month ({format(new Date(), 'MMMM yyyy')})</span>
-                  </CardTitle>
-                  <CardDescription className="truncate">Overview of your spending by category for the current month.</CardDescription>
-              </CardHeader>
-              <CardContent 
-                className="flex flex-col items-center text-center cursor-pointer hover:bg-muted/50 transition-colors rounded-md p-4 min-w-0"
-                onClick={() => handleChartClick(currentMonthChartData, `Spending Breakdown - ${format(new Date(), 'MMMM yyyy')}`)}
-              >
-                {currentMonthChartData.length > 0 ? (
-                  <div className="w-full h-[300px] min-w-0"> {/* Ensure container has dimensions */}
-                    <SpendingBreakdownChart data={currentMonthChartData} />
-                  </div>
-                ) : (
-                  <div className="h-[300px] flex flex-col justify-center items-center text-muted-foreground min-w-0">
-                    <Info className="h-10 w-10 mb-3 flex-shrink-0" />
-                    <p className="truncate">No spending data for this month to display.</p>
-                    <p className="text-sm truncate">Add expenses to see your breakdown.</p>
-                  </div>
-                )}
-                 <p className="text-xs text-muted-foreground mt-2 truncate">Click to enlarge</p>
-              </CardContent>
-               <CardContent className="pt-4 flex flex-col items-center text-center min-w-0">
-                   <p className="text-muted-foreground mb-4 truncate">More detailed charts are available in the Insights section.</p>
-                  <Link href="/insights" passHref>
-                      <Button className="min-h-[44px] touch-manipulation" style={{ WebkitTapHighlightColor: 'transparent' }}>Go to Insights</Button>
-                  </Link>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
-          <div className="md:col-span-1 min-w-0 space-y-6">
+          <div className="space-y-6">
+            <AIFinanceTipCard expenses={expenses} subscriptions={subscriptions} goals={goals} />
             <SubscriptionReminders maxItems={3} />
-            <AIFinanceTipCard expenses={expenses} subscriptions={subscriptions} goals={[]} />
           </div>
         </div>
-        <ChartModal 
-          isOpen={isModalOpen} 
-          onClose={() => setIsModalOpen(false)} 
-          title={modalChartTitle}
-        >
-          {modalChartContent}
-        </ChartModal>
+
+        <Card className="mt-6 shadow-sm">
+          <CardHeader>
+            <CardTitle>Quick actions</CardTitle>
+            <CardDescription>Add a transaction, adjust a budget, or check a renewal.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-2">
+            <Button variant="outline" className="h-auto justify-start p-4 text-left" asChild>
+              <Link href="/expenses">
+                <PlusCircle className="mr-3 h-5 w-5 text-primary" />
+                <span>
+                  <span className="block font-semibold">Add an expense</span>
+                  <span className="block text-xs text-muted-foreground">Log a purchase or scan a receipt.</span>
+                </span>
+              </Link>
+            </Button>
+            <Button variant="outline" className="h-auto justify-start p-4 text-left" asChild>
+              <Link href="/budgets">
+                <TrendingUp className="mr-3 h-5 w-5 text-primary" />
+                <span>
+                  <span className="block font-semibold">Budgets</span>
+                  <span className="block text-xs text-muted-foreground">Compare this month with the limit.</span>
+                </span>
+              </Link>
+            </Button>
+            <Button variant="outline" className="h-auto justify-start p-4 text-left" asChild>
+              <Link href="/subscriptions">
+                <RefreshCw className="mr-3 h-5 w-5 text-primary" />
+                <span>
+                  <span className="block font-semibold">Subscriptions</span>
+                  <span className="block text-xs text-muted-foreground">See what renews next.</span>
+                </span>
+              </Link>
+            </Button>
+            <Button variant="outline" className="h-auto justify-start p-4 text-left" asChild>
+              <Link href="/goals">
+                <Target className="mr-3 h-5 w-5 text-primary" />
+                <span>
+                  <span className="block font-semibold">Goals</span>
+                  <span className="block text-xs text-muted-foreground">Track what you are saving toward.</span>
+                </span>
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
       </div>
-      <ChatbotWidget key="dashboard-chatbot" />
     </>
   );
 }

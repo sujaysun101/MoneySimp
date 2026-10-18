@@ -1,4 +1,3 @@
-'use server';
 /**
  * @fileOverview A Genkit flow for extracting expense information from bill images.
  *
@@ -8,7 +7,7 @@
  * - ExtractBillInfoOutput - The return type for the extractBillInfo function.
  */
 
-import {ai} from '@/ai/genkit';
+import {getAi} from '@/ai/genkit';
 import {z}  from 'genkit';
 import { CATEGORIES } from '@/lib/constants';
 import Tesseract from 'tesseract.js';
@@ -42,10 +41,23 @@ export type ExtractBillInfoOutput = z.infer<typeof ExtractBillInfoOutputSchema>;
 
 // This is the only function that needs to be exported for external use.
 export async function extractBillInfo(input: ExtractBillInfoInput): Promise<ExtractBillInfoOutput> {
-  return extractBillInfoFlow(input);
+  const flow = getExtractFlow();
+  if (!flow) {
+    throw new Error('GEMINI_NOT_CONFIGURED');
+  }
+  return flow(input);
 }
 
-// Internal prompt definition - not exported
+let extractFlow: ((input: ExtractBillInfoInput) => Promise<ExtractBillInfoOutput>) | null | undefined;
+
+function getExtractFlow() {
+  if (extractFlow !== undefined) return extractFlow;
+  const ai = getAi();
+  if (!ai) {
+    extractFlow = null;
+    return extractFlow;
+  }
+
 const prompt = ai.definePrompt({
   name: 'extractBillInfoPrompt',
   input: { schema: ExtractBillInfoInputSchema.extend({ ocrText: z.string().optional() }) },
@@ -111,7 +123,7 @@ const extractBillInfoFlow = ai.defineFlow(
     // 3. Parse (optional: can be used for debugging or future improvements)
     const parsed = parseReceiptText(cleanedText);
     // 4. LLM step: pass OCR text to the prompt
-    const { output } = await prompt({ ...input, ocrText: cleanedText });
+    const { output } = await prompt({ ...input, ocrText: cleanedText }, { config: { maxOutputTokens: 800 } });
     if (!output || !output.expenses || output.expenses.length === 0) {
       return {
         expenses: [{
@@ -131,6 +143,9 @@ const extractBillInfoFlow = ai.defineFlow(
     return { expenses: processedExpenses };
   }
 );
+  extractFlow = extractBillInfoFlow;
+  return extractFlow;
+}
 
 // 1. OCR Step (Tesseract.js integration)
 async function extractTextFromImage(photoDataUri: string): Promise<string> {
