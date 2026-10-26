@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { collection, onSnapshot, query, QueryConstraint, getFirestore } from 'firebase/firestore';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 
 // Generic hook to listen to a user's subcollection in Firestore (e.g., 'expenses', 'budgets')
 export function useFirestore<T = any>(subcollection: string, constraints: QueryConstraint[] = []) {
@@ -20,7 +20,10 @@ export function useFirestore<T = any>(subcollection: string, constraints: QueryC
         setLoading(false);
         return;
       }
-      const db = getFirestore();
+      if (!db) {
+        setLoading(false);
+        return;
+      }
       const ref = collection(db, 'users', user.uid, subcollection);
       const q = constraints.length ? query(ref, ...constraints) : query(ref);
       const unsubscribe = onSnapshot(q, (snapshot) => {

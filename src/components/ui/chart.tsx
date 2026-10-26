@@ -34,17 +34,30 @@ function useChart() {
   return context
 }
 
-const ChartContainer = React.forwardRef<
-  HTMLDivElement,
-  React.ComponentProps<"div"> & {
-    config: ChartConfig
-    children: React.ComponentProps<
-      typeof RechartsPrimitive.ResponsiveContainer
-    >["children"]
-  }
->(({ id, className, children, config, ...props }, ref) => {
+interface ChartContainerProps extends React.ComponentProps<"div"> {
+  config: ChartConfig
+  /** Force disabling ResponsiveContainer (manual override). */
+  disableResponsive?: boolean
+  /** Force keeping ResponsiveContainer even if heuristics think it's fixed size. */
+  forceResponsive?: boolean
+  /** Children chart elements. */
+  children: React.ComponentProps<
+    typeof RechartsPrimitive.ResponsiveContainer
+  >["children"]
+}
+
+const ChartContainer = React.forwardRef<HTMLDivElement, ChartContainerProps>(
+  ({ id, className = "", children, config, disableResponsive = false, forceResponsive = false, ...props }, ref) => {
   const uniqueId = React.useId()
   const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`
+
+  // Heuristic: if caller provides fixed pixel height AND either fixed pixel width or a max-width constraint,
+  // disable ResponsiveContainer to avoid Recharts warning about fixed numbers.
+  const hasFixedHeight = /h-\[\d+px\]/.test(className)
+  const hasFixedWidth = /w-\[\d+px\]/.test(className)
+  const hasMaxFixedWidth = /max-w-\[\d+px\]/.test(className)
+  const autoDisable = hasFixedHeight && (hasFixedWidth || hasMaxFixedWidth)
+  const shouldDisable = !forceResponsive && (disableResponsive || autoDisable)
 
   return (
     <ChartContext.Provider value={{ config }}>
@@ -52,19 +65,26 @@ const ChartContainer = React.forwardRef<
         data-chart={chartId}
         ref={ref}
         className={cn(
-          "flex aspect-video justify-center text-xs [&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-none [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-sector]:outline-none [&_.recharts-surface]:outline-none",
+          // Removed fixed aspect-video to allow callers to control sizing; provide sensible flexible defaults
+          "relative flex justify-center items-center w-full h-full min-h-[220px] text-xs [&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-none [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-sector]:outline-none [&_.recharts-surface]:outline-none",
           className
         )}
         {...props}
       >
         <ChartStyle id={chartId} config={config} />
-        <RechartsPrimitive.ResponsiveContainer>
-          {children}
-        </RechartsPrimitive.ResponsiveContainer>
+  {shouldDisable ? (
+          // Render children directly when fixed size is used to avoid Recharts warning.
+          children as React.ReactElement
+        ) : (
+          <RechartsPrimitive.ResponsiveContainer>
+            {children}
+          </RechartsPrimitive.ResponsiveContainer>
+        )}
       </div>
     </ChartContext.Provider>
   )
-})
+}
+)
 ChartContainer.displayName = "Chart"
 
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
@@ -280,20 +300,21 @@ const ChartLegendContent = React.forwardRef<
       <div
         ref={ref}
         className={cn(
-          "flex items-center justify-center gap-4",
+          // Allow wrapping & smaller spacing on very narrow screens
+          "flex flex-wrap items-center justify-center gap-2 sm:gap-3 md:gap-4 max-w-full",
           verticalAlign === "top" ? "pb-3" : "pt-3",
           className
         )}
       >
-        {payload.map((item) => {
+        {payload.map((item, index) => {
           const key = `${nameKey || item.dataKey || "value"}`
           const itemConfig = getPayloadConfigFromPayload(config, item, key)
 
           return (
             <div
-              key={item.value}
+              key={`${item.value}-${index}`}
               className={cn(
-                "flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-muted-foreground"
+                "flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-muted-foreground text-[10px] sm:text-[11px] md:text-xs whitespace-nowrap"
               )}
             >
               {itemConfig?.icon && !hideIcon ? (

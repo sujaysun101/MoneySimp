@@ -1,0 +1,19 @@
+[
+  {
+    "id": "user_admin_001",
+    "username": "admin",
+    "email": "admin@moneysimp.com",
+    "displayName": "Administrator",
+    "role": "admin",
+    "permissions": {
+      "canAccessAI": true,
+      "canManageBudgets": true,
+      "canExportReports": true,
+      "canManageCommunity": true,
+      "status": "active"
+    },
+    "salt": "4342a9bd96b4e69ba214d97073917ee5",
+    "passwordHash": "4b05e75c9aed8bef9716676a3789b9858e28644729363a482199b821531b6e3a56957096bc0fd5b155a85da0fb20af2f0bcf261fd763e027a385d7cd084ddf8d",
+    "createdAt": "2026-10-26T18:31:28.448Z"
+  }
+]

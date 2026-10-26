@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:mem": "set NODE_OPTIONS=--max_old_space_size=2048 && next dev",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
-    "build": "next build",
+    "build": "npm run build:css && next build",
+    "build:css": "tailwindcss -i ./src/app/globals.css -o ./src/app/output.css",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
@@ -79,6 +81,7 @@
     "tailwindcss-animate": "^1.0.7",
     "tesseract.js": "^6.0.1",
     "uuid": "^9.0.1",
+    "web-vitals": "^4.2.4",
     "zod": "^3.24.2"
   },
   "devDependencies": {

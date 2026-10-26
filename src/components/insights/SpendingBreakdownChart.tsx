@@ -3,7 +3,7 @@
 
 import * as React from "react"
 import { PieChart as PieChartIcon, Info, type LucideIcon, MoreVertical, Download, Printer } from "lucide-react" 
-import { Pie, PieChart, ResponsiveContainer, Cell, Tooltip, Legend } from "recharts"
+import { Pie, PieChart, Cell, Tooltip, Legend } from "recharts"
 import html2canvas from 'html2canvas';
 import { useToast } from "@/hooks/use-toast";
 
@@ -40,12 +40,18 @@ interface SpendingBreakdownChartProps {
   data: SpendingDataPoint[];
   title?: string; 
   description?: string; 
+  /** If true, renders only the chart body (no internal Card wrapper/title/footer) for embedding inside an outer Card. */
+  embedded?: boolean;
+  /** Hide the summary footer text (applies to both modes). */
+  hideSummary?: boolean;
 }
 
 export function SpendingBreakdownChart({ 
   data, 
   title = "Spending Breakdown", 
-  description = "By Category" 
+  description = "By Category",
+  embedded = false,
+  hideSummary = false,
 }: SpendingBreakdownChartProps) {
   const chartRef = React.useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -164,8 +170,49 @@ export function SpendingBreakdownChart({
   
   const hasData = data && data.length > 0;
 
+  if (embedded) {
+    return (
+      <div ref={chartRef} className="flex flex-col items-center w-full">
+        {!hideSummary && hasData && (
+          <div className="mb-3 flex flex-col items-center text-center gap-1 text-xs sm:text-sm">
+            <div className="font-medium text-foreground">
+              Total spent: {totalAmount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+            </div>
+          </div>
+        )}
+        {!hasData ? (
+          <div className="flex flex-col items-center text-center text-muted-foreground py-4">
+            <Info className="h-10 w-10 mb-3" />
+            <p>No spending data available.</p>
+            <p className="text-sm">Add expenses to see your breakdown.</p>
+          </div>
+        ) : (
+          <ChartContainer
+            config={chartConfig}
+            className="mx-auto w-full max-w-[420px] aspect-square"
+          >
+            <PieChart>
+              <Tooltip cursor={false} content={<ChartTooltipContent hideLabel nameKey="category" />} />
+              <Pie data={data} dataKey="amount" nameKey="category" innerRadius={60} strokeWidth={2} labelLine={false}>
+                {data.map((entry, index) => (
+                  <Cell key={`cell-${entry.category}-${index}`} fill={entry.fill} name={entry.category} />
+                ))}
+              </Pie>
+              <Legend content={<ChartLegendContent nameKey="category"/>} />
+            </PieChart>
+          </ChartContainer>
+        )}
+        {!hideSummary && hasData && (
+          <div className="mt-4 mb-1 text-xs text-muted-foreground text-center">
+            Showing breakdown of your spending categories.
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <Card className="flex flex-col shadow-lg min-h-[450px] h-full" ref={chartRef}>
+  <Card className="flex flex-col shadow-lg h-full" ref={chartRef}>
       <CardHeader className="items-center pb-0">
         <div className="flex items-center justify-between w-full">
             <div className="flex items-center">
@@ -195,7 +242,7 @@ export function SpendingBreakdownChart({
         </div>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
-      <CardContent className="flex-1 flex items-center justify-center pb-0">
+  <CardContent className="flex-1 flex items-center justify-center pb-0">
         {!hasData ? (
           <div className="flex flex-col items-center text-center text-muted-foreground">
             <Info className="h-10 w-10 mb-3" />
@@ -205,29 +252,27 @@ export function SpendingBreakdownChart({
         ) : (
           <ChartContainer
             config={chartConfig}
-            className="mx-auto aspect-square max-h-[300px] w-full h-full"
+            className="mx-auto w-full max-w-[420px] aspect-square"
           >
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Tooltip
-                  cursor={false}
-                  content={<ChartTooltipContent hideLabel nameKey="category" />}
-                />
-                <Pie
-                  data={data}
-                  dataKey="amount"
-                  nameKey="category"
-                  innerRadius={60}
-                  strokeWidth={2}
-                  labelLine={false}
-                >
-                  {data.map((entry) => (
-                    <Cell key={`cell-${entry.category}`} fill={entry.fill} name={entry.category} />
-                  ))}
-                </Pie>
-                 <Legend content={<ChartLegendContent nameKey="category"/>} />
-              </PieChart>
-            </ResponsiveContainer>
+            <PieChart>
+              <Tooltip
+                cursor={false}
+                content={<ChartTooltipContent hideLabel nameKey="category" />}
+              />
+              <Pie
+                data={data}
+                dataKey="amount"
+                nameKey="category"
+                innerRadius={60}
+                strokeWidth={2}
+                labelLine={false}
+              >
+                {data.map((entry, index) => (
+                  <Cell key={`cell-${entry.category}-${index}`} fill={entry.fill} name={entry.category} />
+                ))}
+              </Pie>
+               <Legend content={<ChartLegendContent nameKey="category"/>} />
+            </PieChart>
           </ChartContainer>
         )}
       </CardContent>

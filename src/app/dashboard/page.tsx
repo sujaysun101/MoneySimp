@@ -3,18 +3,28 @@
 
 import { AIFinanceTipCard } from '@/components/shared/AIFinanceTipCard';
 import { ChartModal } from '@/components/shared/ChartModal';
-import { SpendingBreakdownChart, type SpendingDataPoint } from '@/components/insights/SpendingBreakdownChart';
+import type { SpendingDataPoint } from '@/components/insights/SpendingBreakdownChart';
 import { SubscriptionReminders } from '@/components/subscriptions/SubscriptionReminders';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { DollarSign, TrendingUp, Landmark, PlusCircle, PieChart, Info, RefreshCw, Target } from 'lucide-react';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import type { Expense } from '@/lib/types';
 import { CATEGORIES, EXPENSES_STORAGE_KEY } from '@/lib/constants';
 import { isSameMonth, format } from 'date-fns';
-import { ChatbotWidget } from '@/components/ui/ChatbotWidget/ChatbotWidget';
+import { logCustomMetric } from '@/lib/performanceMetrics';
+
+// Heavy chart (recharts + html2canvas) dynamically loaded to reduce initial JS & hydration cost
+const SpendingBreakdownChart = dynamic(
+  () => import('@/components/insights/SpendingBreakdownChart').then(m => m.SpendingBreakdownChart),
+  { ssr: false, loading: () => <div className="h-[300px] w-full rounded bg-muted/20 animate-pulse" /> }
+);
+
+// Chatbot already injected globally by AppShell after idle; avoid duplicate here.
 
 
 export default function DashboardPage() {
@@ -107,14 +117,45 @@ export default function DashboardPage() {
 
   const handleChartClick = (chartData: SpendingDataPoint[], title: string) => {
     setModalChartTitle(title);
+    // Lazy component will load on demand inside modal too
     setModalChartContent(<SpendingBreakdownChart data={chartData} />);
     setIsModalOpen(true);
   };
 
+  // Hydration / mount timing (rough perceived dashboard ready metric)
+  const metricsLoggedRef = useRef(false);
+  useEffect(() => {
+    if (metricsLoggedRef.current) return; // prevent StrictMode double log
+    metricsLoggedRef.current = true;
+    if (typeof performance !== 'undefined') {
+      const mountMs = performance.now();
+      logCustomMetric('dashboard_mount_ms', Math.round(mountMs));
+      const startData = performance.now();
+      requestAnimationFrame(() => {
+        const afterFrame = performance.now();
+        logCustomMetric('dashboard_first_frame_ms', Math.round(afterFrame));
+        logCustomMetric('dashboard_post_frame_delay_ms', Math.round(afterFrame - startData));
+      });
+    }
+  }, []);
+
+
   if (isLoading) {
     return (
       <div className="container mx-auto py-8 flex justify-center items-center min-h-[calc(100vh-10rem)]">
-        <p>Loading dashboard...</p>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 w-full">
+          {[...Array(3)].map((_, i) => (
+            <Card key={i} className="shadow-md min-w-0">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 min-w-0">
+                <Skeleton className="h-5 w-24 mb-2" />
+                <Skeleton className="h-5 w-5 rounded-full" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-32" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }
@@ -135,7 +176,11 @@ export default function DashboardPage() {
               <DollarSign className="h-5 w-5 text-accent flex-shrink-0" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold truncate">${clientTotalBalance !== null ? clientTotalBalance : '0.00'}</div>
+              {clientTotalBalance === null ? (
+                <Skeleton className="h-8 w-32" />
+              ) : (
+                <div className="text-2xl font-bold truncate">${clientTotalBalance}</div>
+              )}
             </CardContent>
           </Card>
           <Card className="shadow-md hover:shadow-lg transition-shadow min-w-0 break-words">
@@ -144,7 +189,11 @@ export default function DashboardPage() {
               <TrendingUp className="h-5 w-5 text-destructive flex-shrink-0" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold truncate">${clientMonthlySpending !== null ? clientMonthlySpending : '0.00'}</div>
+              {clientMonthlySpending === null ? (
+                <Skeleton className="h-8 w-32" />
+              ) : (
+                <div className="text-2xl font-bold truncate">${clientMonthlySpending}</div>
+              )}
             </CardContent>
           </Card>
           <Card className="shadow-md hover:shadow-lg transition-shadow min-w-0 break-words">
@@ -153,7 +202,11 @@ export default function DashboardPage() {
               <Landmark className="h-5 w-5 text-primary flex-shrink-0" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold truncate">{clientBudgetProgress !== null ? clientBudgetProgress : '0'}% Utilized</div>
+              {clientBudgetProgress === null ? (
+                <Skeleton className="h-8 w-24" />
+              ) : (
+                <div className="text-2xl font-bold truncate">{clientBudgetProgress}% Utilized</div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -218,11 +271,11 @@ export default function DashboardPage() {
                 onClick={() => handleChartClick(currentMonthChartData, `Spending Breakdown - ${format(new Date(), 'MMMM yyyy')}`)}
               >
                 {currentMonthChartData.length > 0 ? (
-                  <div className="w-full h-[300px] min-w-0"> {/* Ensure container has dimensions */}
-                    <SpendingBreakdownChart data={currentMonthChartData} />
+                  <div className="w-full aspect-square max-w-[420px] mx-auto min-w-0"> {/* Responsive square chart */}
+                    <SpendingBreakdownChart data={currentMonthChartData} embedded />
                   </div>
                 ) : (
-                  <div className="h-[300px] flex flex-col justify-center items-center text-muted-foreground min-w-0">
+                  <div className="aspect-square w-full max-w-[420px] mx-auto flex flex-col justify-center items-center text-muted-foreground min-w-0">
                     <Info className="h-10 w-10 mb-3 flex-shrink-0" />
                     <p className="truncate">No spending data for this month to display.</p>
                     <p className="text-sm truncate">Add expenses to see your breakdown.</p>
@@ -230,8 +283,8 @@ export default function DashboardPage() {
                 )}
                  <p className="text-xs text-muted-foreground mt-2 truncate">Click to enlarge</p>
               </CardContent>
-               <CardContent className="pt-4 flex flex-col items-center text-center min-w-0">
-                   <p className="text-muted-foreground mb-4 truncate">More detailed charts are available in the Insights section.</p>
+        <CardContent className="pt-8 sm:pt-10 flex flex-col items-center text-center min-w-0">
+          <p className="text-muted-foreground mb-5 sm:mb-6 truncate">More detailed charts are available in the Insights section.</p>
                   <Link href="/insights" passHref>
                       <Button className="min-h-[44px] touch-manipulation" style={{ WebkitTapHighlightColor: 'transparent' }}>Go to Insights</Button>
                   </Link>
@@ -252,7 +305,7 @@ export default function DashboardPage() {
           {modalChartContent}
         </ChartModal>
       </div>
-      <ChatbotWidget key="dashboard-chatbot" />
+  {/* Chatbot omitted here (loaded once globally in AppShell after idle). */}
     </>
   );
 }

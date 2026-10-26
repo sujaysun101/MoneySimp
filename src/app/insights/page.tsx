@@ -16,6 +16,7 @@ import {
   LazyAverageCategorySpendingChart,
   LazyChartComponent
 } from '@/components/performance/LazyComponents';
+import { Suspense } from 'react';
 
 // Add missing storage key constants
 const EXPENSES_STORAGE_KEY = 'moneySimpExpenses';
@@ -243,18 +244,26 @@ export default function InsightsPage() {
 
       <div className="grid gap-8 md:grid-cols-1 lg:grid-cols-2 mb-8">
         <div className="cursor-pointer hover:shadow-xl transition-shadow rounded-lg" onClick={() => openChartInModal("Spending Breakdown (All Time)", <LazySpendingBreakdownChart data={breakdownData} />)}>
-          <LazySpendingBreakdownChart data={breakdownData} />
+          <LazyChartComponent>
+            <LazySpendingBreakdownChart data={breakdownData} />
+          </LazyChartComponent>
         </div>
         <div className="cursor-pointer hover:shadow-xl transition-shadow rounded-lg" onClick={() => openChartInModal("Monthly Spending Trend (Last 6 Months)", <LazySpendingTrendChart data={trendData} />)}>
-          <LazySpendingTrendChart data={trendData} />
+          <LazyChartComponent>
+            <LazySpendingTrendChart data={trendData} />
+          </LazyChartComponent>
         </div>
       </div>
        <div className="grid gap-8 md:grid-cols-1 lg:grid-cols-2">
         <div className="cursor-pointer hover:shadow-xl transition-shadow rounded-lg" onClick={() => openChartInModal(`Budget vs. Actual Spending (${format(new Date(), 'MMMM yyyy')})`, <LazyBudgetVsActualChart data={budgetActualData} />)}>
-          <MemoizedBudgetVsActual data={budgetActualData} />
+          <LazyChartComponent>
+            <MemoizedBudgetVsActual data={budgetActualData} />
+          </LazyChartComponent>
         </div>
         <div className="cursor-pointer hover:shadow-xl transition-shadow rounded-lg" onClick={() => openChartInModal("Average Monthly Spending per Category", <LazyAverageCategorySpendingChart data={averageSpendingData} />)}>
-          <LazyAverageCategorySpendingChart data={averageSpendingData} />
+          <LazyChartComponent>
+            <LazyAverageCategorySpendingChart data={averageSpendingData} />
+          </LazyChartComponent>
         </div>
       </div>
 

@@ -8,7 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
-import { DollarSign } from 'lucide-react';
+import { DollarSign, Receipt } from 'lucide-react';
+import { TaxSuggestionCard } from './TaxSuggestionCard';
 
 interface ExpenseListProps {
   expenses: Expense[];
@@ -40,48 +41,85 @@ export function ExpenseList({ expenses, onUpdateExpense, onDeleteExpense }: Expe
   const sortedExpenses = [...expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return (
-    <Card className="mt-8 shadow-md">
-      <CardHeader>
-        <CardTitle>Recent Expenses</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ScrollArea className="h-[300px] w-full">
-          <Table>
-            <TableHeader className="sticky top-0 bg-card">
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sortedExpenses.map((expense) => {
-                const category = getCategory(expense.categoryId);
-                return (
-                  <TableRow key={expense.id}>
-                    <TableCell>{format(new Date(expense.date), 'MMM dd, yyyy')}</TableCell>
-                    <TableCell className="font-medium">{expense.description}</TableCell>
-                    <TableCell>
-                      {category ? (
-                        <Badge variant="outline" style={{ borderColor: category.color, color: category.color }} className="flex items-center gap-1 w-fit">
-                          <category.icon className="h-3 w-3" />
-                          {category.name}
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline">Unknown</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      ${expense.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </ScrollArea>
-      </CardContent>
-    </Card>
+    <>
+      {/* Tax Suggestions for recent expenses */}
+      {onUpdateExpense && (
+        <div className="mt-6 space-y-3">
+          {sortedExpenses.slice(0, 5).map((expense) => (
+            <TaxSuggestionCard
+              key={`suggestion-${expense.id}`}
+              expense={expense}
+              onUpdateExpense={onUpdateExpense}
+            />
+          ))}
+        </div>
+      )}
+
+      <Card className="mt-8 shadow-md">
+        <CardHeader>
+          <CardTitle>Recent Expenses</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ScrollArea className="h-[300px] w-full">
+            <Table>
+              <TableHeader className="sticky top-0 bg-card">
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead className="text-center">Tax</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sortedExpenses.map((expense) => {
+                  const category = getCategory(expense.categoryId);
+                  return (
+                    <TableRow key={expense.id}>
+                      <TableCell>{format(new Date(expense.date), 'MMM dd, yyyy')}</TableCell>
+                      <TableCell className="font-medium">
+                        <div>
+                          {expense.description}
+                          {expense.vendor && (
+                            <p className="text-xs text-muted-foreground">
+                              {expense.vendor}
+                            </p>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {category ? (
+                          <Badge variant="outline" style={{ borderColor: category.color, color: category.color }} className="flex items-center gap-1 w-fit">
+                            <category.icon className="h-3 w-3" />
+                            {category.name}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline">Unknown</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {expense.taxDeductible ? (
+                          <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
+                            <Receipt className="h-3 w-3 mr-1" />
+                            Yes
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-muted-foreground">
+                            No
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        ${expense.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+        </CardContent>
+      </Card>
+    </>
   );
 }

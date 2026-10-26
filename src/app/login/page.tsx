@@ -1,372 +1,349 @@
-// src/app/login/page.tsx
 "use client";
 
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { APP_NAME } from "@/lib/constants";
-import { useRouter } from "next/navigation";
-import React, { useEffect } from "react"; 
-import { useToast } from "@/hooks/use-toast";
-import Link from "next/link";
-import { auth, googleProvider, microsoftProvider, twitterProvider } from '@/lib/firebase';
-import { 
-  signInWithPopup, 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
-  type AuthProvider,
-  getAdditionalUserInfo
-} from 'firebase/auth';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { cn } from "@/lib/utils";
+import React, { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { Eye, EyeOff, Lock, User as UserIcon, Mail, Sparkles, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAuth } from '@/hooks/useAuth';
+import { APP_NAME } from '@/lib/constants';
 
-// Placeholder SVG icons
-const GoogleIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M21.35,11.1H12.18V13.83H18.69C18.36,17.64 15.19,19.27 12.19,19.27C8.36,19.27 5,16.25 5,12C5,7.9 8.2,4.73 12.19,4.73C14.76,4.73 16.04,5.87 17.01,6.74L19.27,4.49C17.22,2.62 14.92,1.5 12.19,1.5C7.22,1.5 3.31,5.36 3.31,12C3.31,18.64 7.22,22.5 12.19,22.5C17.14,22.5 21.09,18.96 21.09,12.33C21.09,11.76 21.35,11.1 21.35,11.1V11.1Z" />
-  </svg>
-);
-
-const XIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-  </svg>
-);
-
-const MicrosoftIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M11.4,11.4H0V0H11.4Zm0,12.6H0V12.6H11.4ZM24,11.4H12.6V0H24Zm0,12.6H12.6V12.6H24Z"/>
-  </svg>
-);
-
-const loginSchema = z.object({
-  email: z.string().email({ message: "Invalid email address." }).min(1, { message: "Email is required." }),
-  password: z.string().min(1, { message: "Password is required." }),
-});
-type LoginFormValues = z.infer<typeof loginSchema>;
-
-const signupSchema = z.object({
-  email: z.string().email({ message: "Invalid email address." }).min(1, { message: "Email is required." }),
-  password: z.string()
-    .min(8, { message: "Password must be at least 8 characters." })
-    .regex(/[A-Z]/, { message: "Password must contain an uppercase letter." })
-    .regex(/[a-z]/, { message: "Password must contain a lowercase letter." })
-    .regex(/[0-9]/, { message: "Password must contain a number." })
-    .regex(/[^A-Za-z0-9]/, { message: "Password must contain a special character.\nRequirements:\n- At least 8 characters\n- One uppercase letter\n- One lowercase letter\n- One number\n- One special character" }),
-  confirmPassword: z.string().min(1, { message: "Please confirm your password." }),
-}).refine(data => data.password === data.confirmPassword, {
-  message: "Passwords do not match.",
-  path: ["confirmPassword"], 
-});
-type SignupFormValues = z.infer<typeof signupSchema>;
-
-
-export default function LoginPage() {
+function LoginFormContent() {
   const router = useRouter();
-  const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const from = searchParams?.get('from') || '/dashboard';
+  const { login, signup } = useAuth();
 
-  const loginForm = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: { email: "", password: "" },
-  });
+  // Login form state
+  const [loginIdentifier, setLoginIdentifier] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
-  const signupForm = useForm<SignupFormValues>({
-    resolver: zodResolver(signupSchema),
-    defaultValues: { email: "", password: "", confirmPassword: "" },
-  });
+  // Signup form state
+  const [signupUsername, setSignupUsername] = useState('');
+  const [signupEmail, setSignupEmail] = useState('');
+  const [signupDisplayName, setSignupDisplayName] = useState('');
+  const [signupPassword, setSignupPassword] = useState('');
+  const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
+  const [showSignupPassword, setShowSignupPassword] = useState(false);
+  const [signupLoading, setSignupLoading] = useState(false);
+  const [signupError, setSignupError] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Check if already logged in via Firebase on component mount
-    if (auth?.currentUser) {
-      router.replace('/dashboard');
-    }
-  }, [router]);
-
-  const handleBookDemoClick = () => {
-    // Logic for booking a demo, e.g., opening Calendly
-    // For now, it's an external link handled by <a> tag
-  };
-
-  const handleEmailPasswordLogin = async (values: LoginFormValues) => {
-    // Zod validation handles empty fields before this point
-    if (!auth) {
-      toast({ title: "Error", description: "Authentication service not available", variant: "destructive" });
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError(null);
+    if (!loginIdentifier || !loginPassword) {
+      setLoginError('Please enter both username/email and password.');
       return;
     }
-    
-    try {
-      await signInWithEmailAndPassword(auth, values.email, values.password);
-      toast({ title: "Login Successful", description: "Welcome back!" });
-      router.push('/dashboard'); 
-    } catch (error: any) {
-      console.error("Login failed:", error); // Log the full error for developers
-      let description = "An unexpected error occurred. Please try again.";
 
-      if (error.code === 'auth/invalid-credential') {
-        description = "Invalid email or password. Please check your credentials and try again. If you don't have an account, please sign up.";
-      } else if (error.code === 'auth/user-not-found') {
-        description = "No account found with this email. Please sign up or check the email address.";
-      } else if (error.code === 'auth/wrong-password') {
-         description = "Incorrect password. Please try again.";
-      } else if (error.code === 'auth/invalid-email') { 
-         description = "The email address is badly formatted. Please correct it.";
-      } else if (error.code === 'auth/user-disabled') {
-         description = "This account has been disabled. Please contact support.";
-      } else if (error.message) { // Fallback to Firebase's message if code is not recognized
-        description = error.message;
-      }
-      toast({ title: "Login Failed", description, variant: "destructive" });
+    setLoginLoading(true);
+    try {
+      await login(loginIdentifier, loginPassword);
+      router.push(from);
+      router.refresh();
+    } catch (err: any) {
+      setLoginError(err.message || 'Login failed. Please check your credentials.');
+    } finally {
+      setLoginLoading(false);
     }
   };
 
-  const handleEmailPasswordSignup = async (values: SignupFormValues) => {
-     // Zod validation handles empty fields and password match before this point
-    if (!auth) {
-      toast({ title: "Error", description: "Authentication service not available", variant: "destructive" });
+  const handleQuickAdminLogin = async () => {
+    setLoginIdentifier('admin');
+    setLoginPassword('123');
+    setLoginError(null);
+    setLoginLoading(true);
+    try {
+      await login('admin', '123');
+      router.push(from);
+      router.refresh();
+    } catch (err: any) {
+      setLoginError(err.message || 'Failed to login as admin.');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSignupError(null);
+
+    if (!signupUsername || !signupEmail || !signupPassword) {
+      setSignupError('All required fields must be filled.');
       return;
     }
-    
-    try {
-      await createUserWithEmailAndPassword(auth, values.email, values.password);
-      // Clear any potential guest data on new user signup
-      localStorage.removeItem('moneySimp-budgets'); 
-      localStorage.removeItem('moneySimp-expenses'); 
-      
-      toast({ title: "Signup Successful", description: `Welcome to ${APP_NAME}!` });
-      router.push('/dashboard'); 
-    } catch (error: any) {
-      console.error("Signup failed:", error);
-      let description = "Could not create account. Please try again.";
-      if (error.code === 'auth/email-already-in-use') {
-        description = "This email is already registered. Please log in instead.";
-      } else if (error.code === 'auth/weak-password') {
-        description = "Password is too weak. Ensure it meets all requirements.";
-      } else if (error.message) {
-        description = error.message;
-      }
-      toast({ title: "Signup Failed", description, variant: "destructive" });
-    }
-  };
 
-  const handleSocialLogin = async (providerName: string, authProvider: AuthProvider) => {
-    if (providerName === "X") {
-        toast({
-          title: "X/Twitter Login",
-          description: "X/Twitter login setup can be complex and may require additional configuration in your Firebase project and X Developer Portal for full functionality.",
-          duration: 7000,
-        });
-    }
-    
-    if (!auth) {
-      toast({ title: "Error", description: "Authentication service not available", variant: "destructive" });
+    if (signupPassword !== signupConfirmPassword) {
+      setSignupError('Passwords do not match.');
       return;
     }
-    
-    try {
-      const result = await signInWithPopup(auth, authProvider);
-      const user = result.user;
-      const additionalInfo = getAdditionalUserInfo(result);
 
-      if (additionalInfo?.isNewUser) {
-        localStorage.removeItem('moneySimp-budgets'); 
-        localStorage.removeItem('moneySimp-expenses');
-        toast({ title: `Signed up with ${providerName}`, description: `Welcome to ${APP_NAME}!` });
-      } else {
-        toast({ title: `Logged in with ${providerName}`, description: "Welcome back!" });
-      }
-      router.push('/dashboard');
-    } catch (error: any) {
-      console.error(`Error with ${providerName} login:`, error);
-      let errorMessage = `Could not sign in with ${providerName}. Please try again.`;
-      if (error.code === 'auth/account-exists-with-different-credential') {
-        errorMessage = 'An account already exists with the same email address but different sign-in credentials. Try signing in using a provider associated with this email.';
-      } else if (error.code === 'auth/popup-closed-by-user') {
-        errorMessage = `Sign-in popup was closed. This could be due to a pop-up blocker or manual closure. Please try again and ensure pop-ups are allowed.`;
-      } else if (error.code === 'auth/cancelled-popup-request') {
-        errorMessage = `Sign-in cancelled. This can happen if multiple popups are open or if a pop-up blocker interfered. Please try again and ensure pop-ups are allowed.`;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      toast({
-        title: `${providerName} Login Failed`,
-        description: errorMessage,
-        variant: "destructive",
-        duration: 7000,
-      });
+    if (signupPassword.length < 3) {
+      setSignupError('Password must be at least 3 characters.');
+      return;
+    }
+
+    setSignupLoading(true);
+    try {
+      await signup(signupUsername, signupEmail, signupPassword, signupDisplayName || signupUsername);
+      router.push(from);
+      router.refresh();
+    } catch (err: any) {
+      setSignupError(err.message || 'Signup failed.');
+    } finally {
+      setSignupLoading(false);
     }
   };
-  
-  const SocialLoginButtons = () => (
-    <div className="space-y-4">
-      <div className="relative my-6">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-card px-2 text-muted-foreground">
-            Or continue with
-          </span>
-        </div>
-      </div>
-      <Button variant="outline" className="w-full" onClick={() => handleSocialLogin('Google', googleProvider)}>
-        <GoogleIcon /> <span className="ml-2">Continue with Google</span>
-      </Button>
-      <Button variant="outline" className="w-full" onClick={() => handleSocialLogin('X', twitterProvider)}>
-        <XIcon /> <span className="ml-2">Continue with X</span>
-      </Button>
-      <Button variant="outline" className="w-full" onClick={() => handleSocialLogin('Microsoft', microsoftProvider)}>
-        <MicrosoftIcon /> <span className="ml-2">Continue with Microsoft</span>
-      </Button>
-    </div>
-  );
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
-      <header className="container mx-auto py-6 flex justify-between items-center">
-        <Link href="/" passHref className="flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-piggy-bank"><path d="M10 15.5V14a2 2 0 1 0-4 0v1.5"/><path d="M8 15.5v4.5H6a2 2 0 0 1-2-2V12a2 2 0 0 1 2-2h2.4a2 2 0 0 1 1.6.8l2.1 2.9c.3.4.9.6 1.4.6H16a2 2 0 0 0 2-2V9a2 2 0 1 0-4 0v1.5a2 2 0 1 1-4 0V9a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2.5c0 .8.4 1.5.9 1.9L5 15"/><path d="M2 9v1c0 1.1.9 2 2 2h1"/></svg>
-          <h1 className="text-2xl font-bold text-primary">{APP_NAME}</h1>
-        </Link>
-        <nav className="space-x-4">
-           <a
-            href="https://calendly.com/sujay9sundar/30min"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cn(buttonVariants({ variant: "default" }))}
-            
-          >
-            Book A Demo
-          </a>
-        </nav>
-      </header>
-
-      <main className="flex flex-col items-center justify-center flex-grow p-4">
-        <div className="mb-8 text-center">
-            <h2 className="text-3xl font-bold text-foreground">Welcome Back!</h2>
-            <p className="text-muted-foreground">Access your personalized finance tracker.</p>
+    <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10 px-4">
+      {/* Quick Testing & Admin Card */}
+      <div className="mb-6 p-4 rounded-xl border border-primary/20 bg-primary/5 backdrop-blur-sm shadow-sm flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-lg bg-primary/20 flex items-center justify-center text-primary">
+            <ShieldCheck className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-foreground">Admin & Tester Access</p>
+            <p className="text-[11px] text-muted-foreground font-mono">user: <strong>admin</strong> | pass: <strong>123</strong></p>
+          </div>
         </div>
-        <Tabs defaultValue="login" className="w-full max-w-md">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="login">Login</TabsTrigger>
-            <TabsTrigger value="signup">Sign Up</TabsTrigger>
-          </TabsList>
+        <Button
+          type="button"
+          size="sm"
+          onClick={handleQuickAdminLogin}
+          disabled={loginLoading}
+          className="text-xs bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm font-medium"
+        >
+          <Sparkles className="w-3.5 h-3.5 mr-1" />
+          Quick Login
+        </Button>
+      </div>
+
+      <Card className="shadow-2xl border-border/60 backdrop-blur-md bg-card/95">
+        <Tabs defaultValue="login" className="w-full">
+          <CardHeader className="pb-4">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="login">Sign In</TabsTrigger>
+              <TabsTrigger value="signup">Create Account</TabsTrigger>
+            </TabsList>
+          </CardHeader>
+
+          {/* TAB: LOGIN */}
           <TabsContent value="login">
-            <Card className="shadow-xl">
-              <CardHeader>
-                <CardTitle>Login to Your Account</CardTitle>
-                <CardDescription>Enter your credentials to continue.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Form {...loginForm}>
-                  <form onSubmit={loginForm.handleSubmit(handleEmailPasswordLogin)} className="space-y-6">
-                    <FormField
-                      control={loginForm.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input type="email" placeholder="you@example.com" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+            <CardContent>
+              <form onSubmit={handleLogin} className="space-y-4">
+                {loginError && (
+                  <div className="p-3 text-xs rounded-lg bg-destructive/10 text-destructive border border-destructive/20">
+                    {loginError}
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">Username or Email</label>
+                  <div className="relative">
+                    <UserIcon className="w-4 h-4 text-muted-foreground absolute left-3 top-3" />
+                    <Input
+                      type="text"
+                      placeholder="admin or user@example.com"
+                      value={loginIdentifier}
+                      onChange={(e) => setLoginIdentifier(e.target.value)}
+                      className="pl-9 text-sm"
+                      autoComplete="username"
+                      required
                     />
-                    <FormField
-                      control={loginForm.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Password</FormLabel>
-                          <FormControl>
-                            <Input type="password" placeholder="••••••••" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-foreground">Password</label>
+                  </div>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-muted-foreground absolute left-3 top-3" />
+                    <Input
+                      type={showLoginPassword ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      className="pl-9 pr-10 text-sm"
+                      autoComplete="current-password"
+                      required
                     />
-                    <Button type="submit" className="w-full" disabled={loginForm.formState.isSubmitting}>
-                      {loginForm.formState.isSubmitting ? "Logging in..." : "Login"}
-                    </Button>
-                  </form>
-                </Form>
-                <SocialLoginButtons />
-              </CardContent>
-            </Card>
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginPassword(!showLoginPassword)}
+                      className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+                    >
+                      {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full mt-2 font-medium"
+                  disabled={loginLoading}
+                >
+                  {loginLoading ? 'Signing in...' : 'Sign In'}
+                  {!loginLoading && <ArrowRight className="w-4 h-4 ml-1.5" />}
+                </Button>
+              </form>
+            </CardContent>
           </TabsContent>
+
+          {/* TAB: SIGNUP */}
           <TabsContent value="signup">
-            <Card className="shadow-xl">
-              <CardHeader>
-                <CardTitle>Create New Account</CardTitle>
-                <CardDescription>Join {APP_NAME} today!</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Form {...signupForm}>
-                  <form onSubmit={signupForm.handleSubmit(handleEmailPasswordSignup)} className="space-y-6">
-                    <FormField
-                      control={signupForm.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input type="email" placeholder="you@example.com" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+            <CardContent>
+              <form onSubmit={handleSignup} className="space-y-3.5">
+                {signupError && (
+                  <div className="p-3 text-xs rounded-lg bg-destructive/10 text-destructive border border-destructive/20">
+                    {signupError}
+                  </div>
+                )}
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Username</label>
+                  <div className="relative">
+                    <UserIcon className="w-4 h-4 text-muted-foreground absolute left-3 top-3" />
+                    <Input
+                      type="text"
+                      placeholder="johndoe"
+                      value={signupUsername}
+                      onChange={(e) => setSignupUsername(e.target.value)}
+                      className="pl-9 text-sm"
+                      required
                     />
-                    <FormField
-                      control={signupForm.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Password</FormLabel>
-                          <FormControl>
-                            <Input type="password" placeholder="Choose a strong password" {...field} />
-                          </FormControl>
-                          <FormMessage /> 
-                        </FormItem>
-                      )}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Display Name</label>
+                  <Input
+                    type="text"
+                    placeholder="John Doe (Optional)"
+                    value={signupDisplayName}
+                    onChange={(e) => setSignupDisplayName(e.target.value)}
+                    className="text-sm"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Email</label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-muted-foreground absolute left-3 top-3" />
+                    <Input
+                      type="email"
+                      placeholder="john@example.com"
+                      value={signupEmail}
+                      onChange={(e) => setSignupEmail(e.target.value)}
+                      className="pl-9 text-sm"
+                      required
                     />
-                    <FormField
-                      control={signupForm.control}
-                      name="confirmPassword"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Confirm Password</FormLabel>
-                          <FormControl>
-                            <Input type="password" placeholder="Re-enter your password" {...field} />
-                          </FormControl>
-                          <FormMessage /> 
-                        </FormItem>
-                      )}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Password</label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-muted-foreground absolute left-3 top-3" />
+                    <Input
+                      type={showSignupPassword ? 'text' : 'password'}
+                      placeholder="Choose a password"
+                      value={signupPassword}
+                      onChange={(e) => setSignupPassword(e.target.value)}
+                      className="pl-9 pr-10 text-sm"
+                      required
                     />
-                    <Button type="submit" className="w-full" disabled={signupForm.formState.isSubmitting}>
-                      {signupForm.formState.isSubmitting ? "Signing up..." : "Sign Up"}
-                    </Button>
-                  </form>
-                </Form>
-                <SocialLoginButtons />
-              </CardContent>
-            </Card>
+                    <button
+                      type="button"
+                      onClick={() => setShowSignupPassword(!showSignupPassword)}
+                      className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+                    >
+                      {showSignupPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Confirm Password</label>
+                  <Input
+                    type="password"
+                    placeholder="Re-enter password"
+                    value={signupConfirmPassword}
+                    onChange={(e) => setSignupConfirmPassword(e.target.value)}
+                    className="text-sm"
+                    required
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full mt-2 font-medium"
+                  disabled={signupLoading}
+                >
+                  {signupLoading ? 'Creating account...' : 'Create Account'}
+                  {!signupLoading && <ArrowRight className="w-4 h-4 ml-1.5" />}
+                </Button>
+              </form>
+            </CardContent>
           </TabsContent>
         </Tabs>
-        <p className="mt-8 text-center text-sm text-muted-foreground">
-          Go back to <Link href="/" className="underline hover:text-primary">Homepage</Link>.
+      </Card>
+
+      <p className="mt-6 text-center text-xs text-muted-foreground">
+        Want to explore first?{' '}
+        <Link href="/" className="font-semibold text-primary underline underline-offset-2 hover:opacity-80">
+          Back to Homepage
+        </Link>
+      </p>
+    </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <div className="min-h-screen bg-background flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
+      {/* Decorative background blurs using brand colors */}
+      <div className="absolute top-0 -left-20 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 -right-20 w-96 h-96 bg-accent/10 rounded-full blur-3xl pointer-events-none" />
+
+      {/* Header / Logo */}
+      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center mb-8 relative z-10">
+        <Link href="/" className="inline-flex items-center gap-3 group">
+          <div className="h-12 w-12 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/25 transition-transform group-hover:scale-105">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="26"
+              height="26"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M10 15.5V14a2 2 0 1 0-4 0v1.5" />
+              <path d="M8 15.5v4.5H6a2 2 0 0 1-2-2V12a2 2 0 0 1 2-2h2.4a2 2 0 0 1 1.6.8l2.1 2.9c.3.4.9.6 1.4.6H16a2 2 0 0 0 2-2V9a2 2 0 1 0-4 0v1.5a2 2 0 1 1-4 0V9a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2.5c0 .8.4 1.5.9 1.9L5 15" />
+              <path d="M2 9v1c0 1.1.9 2 2 2h1" />
+            </svg>
+          </div>
+          <span className="text-3xl font-extrabold tracking-tight text-foreground">{APP_NAME}</span>
+        </Link>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Smart personal finance, AI forecasting, and budget intelligence
         </p>
-      </main>
+      </div>
+
+      <Suspense fallback={<div className="text-center text-sm text-muted-foreground">Loading...</div>}>
+        <LoginFormContent />
+      </Suspense>
     </div>
   );
 }
